@@ -16,6 +16,7 @@ The project focuses not only on AI-powered code analysis, but also on building a
 - [x] PostgreSQL persistence
 - [x] Redis infrastructure
 - [x] Review-job API
+- [x] Signed PR webhook ingestion with delivery deduplication
 - [x] Alembic migrations
 - [x] Docker Compose
 
@@ -26,8 +27,7 @@ background review processing is not implemented yet.
 
 ### Planned
 
-- [ ] GitHub App
-- [ ] Webhook ingestion
+- [ ] GitHub App deployment and verified real deliveries
 - [ ] Celery workers
 - [ ] Static analysis
 - [ ] AI reviewer
@@ -176,7 +176,7 @@ Interactive API documentation: [Swagger UI](http://localhost:8000/docs).
 
 | Method | Endpoint                   | Description                                |
 | ------ | -------------------------- | ------------------------------------------ |
-| `POST` | `/api/webhooks/github`     | Receive and validate GitHub webhook events |
+| `POST` | `/api/webhooks/github`     | Implemented: authenticate, deduplicate, and persist PR review jobs |
 | `GET`  | `/api/repositories`        | List connected repositories                |
 | `GET`  | `/api/reviews`             | List pull-request reviews                  |
 | `GET`  | `/api/reviews/{id}`        | Extend existing job retrieval with findings |
@@ -344,7 +344,7 @@ Actual benchmark results will be documented after implementation and reproducibl
 * [x] Add SQLAlchemy models
 * [x] Add Alembic migrations
 * [ ] Create GitHub App
-* [ ] Verify webhook signatures
+* [x] Verify webhook signatures
 * [x] Implement review-job creation API
 * [ ] Add Celery workers
 * [ ] Retrieve pull-request diffs
@@ -390,7 +390,7 @@ FastAPI review-job API
 PostgreSQL
 ```
 
-Redis infrastructure is available. GitHub webhooks, Celery workers, static
+Signed PR webhook ingestion and Redis infrastructure are available. Celery workers, static
 analysis, AI review, and GitHub Check integration are planned; reviews currently
 remain in their initial queued state.
 
@@ -416,3 +416,7 @@ Potential future extensions include:
 ## ⚠️ Disclaimer
 
 DevFlow AI is an experimental developer tool. AI-generated code-review findings may contain false positives or miss issues and should not replace human code review or established security practices.
+
+Webhook ingestion now supports opened, synchronize, and reopened PR events.
+Delivery IDs and review commit identities provide two database deduplication layers.
+A real GitHub delivery requires the App installation and public webhook URL to be configured.

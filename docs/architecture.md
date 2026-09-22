@@ -3,7 +3,8 @@
 ## Current architecture — Day 2
 
 The implemented backend accepts review-job requests through HTTP. GitHub pull
-requests are the intended input, but GitHub App and webhook ingestion are planned.
+requests are the intended input, with signed PR webhook ingestion now implemented (see the ingestion section below).
+GitHub App installation and public delivery configuration are external setup steps.
 
 ```text
                          DEVFLOW AI
@@ -107,6 +108,28 @@ will persist review jobs in PostgreSQL and enqueue work through Redis. Celery
 workers will retrieve changes, run static analysis and LLM review, and produce
 findings for GitHub Check Runs.
 
-Webhook validation, task dispatch, workers, static analysis, LLM review, and
-GitHub Check publication are not implemented yet. PostgreSQL is intended to
+Webhook validation and review-job ingestion are implemented. Task dispatch, workers,
+static analysis, LLM review, and GitHub Check publication are not implemented yet. PostgreSQL is intended to
 remain the durable source of job state as retries and recovery are added.
+
+
+## Authenticated webhook ingestion
+
+`POST /api/webhooks/github` verifies HMAC-SHA256 over the raw body before
+JSON parsing. Missing or invalid signatures return 401; an unconfigured secret
+returns 503. Authenticated deliveries require `X-GitHub-Delivery` and
+`X-GitHub-Event`. Pull request actions `opened`, `synchronize`, and `reopened`
+create review jobs. Other events/actions return `status: ignored`.
+
+`webhook_events` records delivery ID (unique primary key), event type, action,
+received time, and status (`processed` or `ignored`). The delivery insert and
+review insert commit in one PostgreSQL transaction. A failed transaction rolls
+back both, allowing a retry. `ON CONFLICT DO NOTHING` handles concurrent delivery
+retries without a check-then-insert race. A repeated delivery returns
+`status: duplicate`; distinct deliveries targeting the same repository/PR/SHA
+return the existing review ID through the separate review unique constraint.
+
+Accepted responses include `review_id` and `review_target`. `processed` means
+webhook ingestion finished, not that AI review ran. Jobs remain queued.
+A real GitHub delivery additionally requires an installed App, Pull request
+subscriptions, the matching webhook secret, and a reachable public webhook URL.
