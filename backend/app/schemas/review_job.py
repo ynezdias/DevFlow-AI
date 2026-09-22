@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,8 +16,10 @@ class ReviewJobResponse(BaseModel):
     repository_name: str
     pull_request_number: int
     head_sha: str
-    status: str
+    status: Literal["queued", "processing", "completed", "failed", "superseded"]
     attempt_count: int
     created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)

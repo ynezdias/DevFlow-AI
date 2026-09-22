@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,6 +12,10 @@ class ReviewJob(Base):
     __tablename__ = "review_jobs"
 
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'processing', 'completed', 'failed', 'superseded')",
+            name="ck_review_jobs_status",
+        ),
         UniqueConstraint(
             "repository_name",
             "pull_request_number",
@@ -55,6 +59,14 @@ class ReviewJob(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
     )

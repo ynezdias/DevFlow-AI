@@ -43,7 +43,11 @@ status is the initial persisted state, not evidence that a worker is running.
 | GET | `/api/reviews/{review_id}` | Retrieve a persisted job; return 404 if missing |
 
 The `review_jobs` table contains `id`, `repository_name`, `pull_request_number`,
-`head_sha`, `status`, `attempt_count`, and `created_at`. SQLAlchemy models define
+`head_sha`, `status`, `attempt_count`, `created_at`, `started_at`, and `completed_at`.
+The last two timestamps are nullable until processing starts or completes.
+Allowed statuses are `queued`, `processing`, `completed`, `failed`, and
+`superseded`, enforced by a database check constraint. No state machine is implemented.
+SQLAlchemy models define
 database representations; Pydantic schemas define API request and response data.
 
 The database constraint `uq_review_commit` makes the combination of repository
