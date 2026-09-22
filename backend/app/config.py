@@ -1,3 +1,4 @@
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,7 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://redis:6379/0"
     environment: str = "development"
+    github_webhook_secret: SecretStr = SecretStr("")
 
     model_config = SettingsConfigDict(
         env_file=".env",

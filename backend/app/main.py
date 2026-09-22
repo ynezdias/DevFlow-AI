@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.api.reviews import router as reviews_router
+from app.api.webhooks import router as webhooks_router
 from app.db.session import engine
 
 
@@ -13,6 +14,7 @@ app = FastAPI(
 
 
 app.include_router(reviews_router)
+app.include_router(webhooks_router)
 
 
 @app.get("/")

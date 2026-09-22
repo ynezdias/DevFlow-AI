@@ -10,6 +10,7 @@ services:
       DATABASE_URL: postgresql+psycopg://devflow:devflow@postgres:5432/devflow
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: development
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
 
     ports:
       - "8000:8000"
