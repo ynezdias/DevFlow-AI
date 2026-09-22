@@ -1,0 +1,19 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Test coverage
+.coverage
+htmlcov/
