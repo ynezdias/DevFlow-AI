@@ -13,11 +13,21 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from app.api.webhooks import verify_signature
+from app.workers.review_tasks import process_review
+from kombu.exceptions import OperationalError
+from unittest.mock import Mock
 from app.config import settings
 from app.main import app
 
 client = TestClient(app)
 SECRET = "test-webhook-secret"
+
+
+@pytest.fixture(autouse=True)
+def publisher(monkeypatch):
+    publish = Mock()
+    monkeypatch.setattr(process_review, "apply_async", publish)
+    return publish
 
 
 @pytest.fixture(autouse=True)
@@ -103,7 +113,7 @@ def send_event(payload, event="pull_request", delivery=None):
 @pytest.mark.parametrize("action", ["opened", "synchronize", "reopened"])
 def test_supported_action_extracts_target(action):
     response = send_event(pr_payload(action))
-    assert response.status_code == 200
+    assert response.status_code == 202
     assert response.json()["review_id"]
     assert response.json() == {
         "review_id": response.json()["review_id"],
@@ -165,7 +175,7 @@ def test_delivery_deduplicated(database):
     delivery = str(uuid4())
     first = send_event(pr_payload(), delivery=delivery)
     second = send_event(pr_payload(), delivery=delivery)
-    assert first.status_code == 200
+    assert first.status_code == 202
     assert second.json() == {"status": "duplicate"}
     assert database.scalar(select(func.count()).select_from(WebhookEvent).where(WebhookEvent.delivery_id == delivery)) == 1
 
@@ -205,3 +215,37 @@ def test_failure_rolls_back_delivery_for_retry(database, monkeypatch):
     monkeypatch.setattr(database, "scalar", original)
     response = send_event(pr_payload(), delivery=delivery)
     assert response.json()["status"] == "accepted"
+
+
+def test_queue_failure_can_redeliver(database, publisher):
+    delivery = str(uuid4())
+    publisher.side_effect = OperationalError("Redis unavailable")
+    assert send_event(pr_payload(), delivery=delivery).status_code == 503
+    publisher.side_effect = None
+    assert send_event(pr_payload(), delivery=delivery).status_code == 202
+    assert publisher.call_count == 2
+    assert send_event(pr_payload(), delivery=delivery).json() == {"status": "duplicate"}
+    assert publisher.call_count == 2
+    assert database.get(WebhookEvent, delivery).status == "enqueued"
+
+
+def test_worker_redelivery_is_idempotent(database, monkeypatch):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from uuid import UUID
+    import app.workers.review_tasks as tasks
+    response = send_event(pr_payload())
+    review_id = response.json()["review_id"]
+
+    @contextmanager
+    def transaction():
+        with database.begin():
+            yield database
+
+    monkeypatch.setattr(tasks, "SessionLocal", SimpleNamespace(begin=transaction))
+    assert tasks.process_review.run(review_id)["status"] == "completed"
+    assert tasks.process_review.run(review_id)["status"] == "skipped"
+    review = database.get(ReviewJob, UUID(review_id))
+    assert review.attempt_count == 1
+    assert review.started_at is not None
+    assert review.completed_at >= review.started_at

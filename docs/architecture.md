@@ -133,3 +133,37 @@ Accepted responses include `review_id` and `review_target`. `processed` means
 webhook ingestion finished, not that AI review ran. Jobs remain queued.
 A real GitHub delivery additionally requires an installed App, Pull request
 subscriptions, the matching webhook secret, and a reachable public webhook URL.
+
+
+## Celery queue foundation
+
+The supported webhook fast path is authenticate -> persist -> enqueue -> HTTP 202.
+A separate Compose `worker` consumes Redis tasks and updates PostgreSQL. Ignored
+and fully handled duplicate deliveries still return 200. PostgreSQL remains the
+source of review state; only the review UUID is sent to Celery.
+
+Delivery `review_id` links a pending publication to its persisted job. After a
+successful broker publish, delivery status becomes `enqueued`. A publish failure
+returns 503 and leaves it pending; redelivery retries publication. A process crash
+between commit and publish still requires manual redelivery: an automatic outbox
+relay is not implemented. A crash after publish may produce a duplicate task.
+GitHub does not automatically redeliver failed webhook deliveries.
+
+The initial task is a scaffold, not a code review: it records processing/completion
+timestamps and increments attempts in one row-locked transaction. Completed or
+otherwise nonqueued jobs are skipped. Thus duplicate tasks do not repeat this
+unit of database work. `completed` currently means scaffold execution completed;
+no analysis or findings exist yet. External analysis will require a different
+transaction/claim strategy and explicit retry/failure recovery.
+
+Celery uses `REDIS_URL` for its broker and expiring result state:
+- `task_track_started=True` exposes STARTED in Celery's result backend; it does not
+  update the SQLAlchemy job automatically.
+- `task_acks_late=True` acknowledges after task execution. Redelivery is possible;
+  it is not exactly-once execution, and abrupt child-process exits may still be
+  acknowledged under default Celery behavior.
+- `worker_prefetch_multiplier=1` limits reservations to one message per worker
+  process, helping distribute slow tasks fairly with late acknowledgements.
+
+The API still supports manual `POST /api/reviews` creation as before; automatic
+queue submission currently applies to supported GitHub webhooks.
