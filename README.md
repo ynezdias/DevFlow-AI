@@ -8,6 +8,34 @@ The project focuses not only on AI-powered code analysis, but also on building a
 
 > **Project Status:** 🚧 Currently under active development.
 
+## Implementation Status
+
+### Implemented
+
+- [x] FastAPI backend
+- [x] PostgreSQL persistence
+- [x] Redis infrastructure
+- [x] Review-job API
+- [x] Alembic migrations
+- [x] Docker Compose
+
+The API creates and retrieves review jobs. Duplicate requests for the same
+repository, pull-request number, and head SHA return HTTP 409. Persistence has
+been verified across a Compose restart. Redis is running as infrastructure;
+background review processing is not implemented yet.
+
+### Planned
+
+- [ ] GitHub App
+- [ ] Webhook ingestion
+- [ ] Celery workers
+- [ ] Static analysis
+- [ ] AI reviewer
+- [ ] GitHub Check Runs
+
+See [the architecture document](docs/architecture.md) for current behavior and
+the planned Day 3+ workflow.
+
 ---
 
 ## 🎯 Project Goals
@@ -64,7 +92,7 @@ Developer opens/updates Pull Request
             React Dashboard
 ```
 
-### Review Lifecycle
+### Planned Review Lifecycle
 
 1. A developer opens or updates a pull request.
 2. GitHub sends a signed webhook event to DevFlow AI.
@@ -81,6 +109,10 @@ Developer opens/updates Pull Request
 ---
 
 ## 🛠️ Tech Stack
+
+The backend uses Python, FastAPI, SQLAlchemy, Alembic, and PostgreSQL, with
+Docker Compose and Redis infrastructure. The stack below also includes planned
+tools; Celery, AI analysis, frontend, and GitHub integrations are future work.
 
 ### Backend
 
@@ -129,22 +161,32 @@ Developer opens/updates Pull Request
 
 ---
 
-## 🔌 Planned API
+## 🔌 Implemented API
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/` | Service information |
+| `GET` | `/health` | Service and PostgreSQL connectivity status |
+| `POST` | `/api/reviews` | Create a review job; reject duplicates with HTTP 409 |
+| `GET` | `/api/reviews/{review_id}` | Retrieve a persisted review job |
+
+Interactive API documentation: [Swagger UI](http://localhost:8000/docs).
+
+## Planned API Additions
 
 | Method | Endpoint                   | Description                                |
 | ------ | -------------------------- | ------------------------------------------ |
 | `POST` | `/api/webhooks/github`     | Receive and validate GitHub webhook events |
 | `GET`  | `/api/repositories`        | List connected repositories                |
 | `GET`  | `/api/reviews`             | List pull-request reviews                  |
-| `GET`  | `/api/reviews/{id}`        | Retrieve a review and its findings         |
+| `GET`  | `/api/reviews/{id}`        | Extend existing job retrieval with findings |
 | `GET`  | `/api/reviews/{id}/status` | Retrieve review-processing status          |
 | `POST` | `/api/reviews/{id}/retry`  | Retry an eligible failed review            |
 | `GET`  | `/api/metrics/summary`     | Retrieve processing metrics                |
-| `GET`  | `/health`                  | Service health check                       |
 
 ---
 
-## 🤖 AI Review Pipeline
+## 🤖 Planned AI Review Pipeline
 
 The AI reviewer is designed around structured and verifiable outputs rather than unrestricted natural-language responses.
 
@@ -194,13 +236,13 @@ DevFlow AI is being designed around several important reliability principles.
 
 ### Idempotent Processing
 
-GitHub may deliver the same webhook multiple times. Review jobs will use a unique identity based on:
+GitHub may deliver the same webhook multiple times once webhook ingestion is added. Review jobs already use a database unique constraint based on:
 
 ```text
 repository + pull request number + head commit SHA
 ```
 
-This prevents duplicate logical reviews for the same commit.
+This prevents duplicate job records for the same commit. The API returns HTTP 409 for duplicates. Worker retries and deduplication of external side effects are planned.
 
 ### Commit-Aware Reviews
 
@@ -296,14 +338,14 @@ Actual benchmark results will be documented after implementation and reproducibl
 
 ### Phase 1 — Backend & GitHub Integration
 
-* [ ] Initialize FastAPI backend
-* [ ] Configure PostgreSQL
-* [ ] Configure Redis
-* [ ] Add SQLAlchemy models
-* [ ] Add Alembic migrations
+* [x] Initialize FastAPI backend
+* [x] Configure PostgreSQL
+* [x] Configure Redis infrastructure
+* [x] Add SQLAlchemy models
+* [x] Add Alembic migrations
 * [ ] Create GitHub App
 * [ ] Verify webhook signatures
-* [ ] Implement review-job creation
+* [x] Implement review-job creation API
 * [ ] Add Celery workers
 * [ ] Retrieve pull-request diffs
 * [ ] Integrate Ruff and Bandit
@@ -338,21 +380,19 @@ Actual benchmark results will be documented after implementation and reproducibl
 
 DevFlow AI is currently under development.
 
-The first milestone is building the core infrastructure:
+The Day 2 backend supports this implemented flow:
 
 ```text
-GitHub Webhook
+HTTP client / Swagger UI
       ↓
-FastAPI
+FastAPI review-job API
       ↓
 PostgreSQL
-      ↓
-Redis / Celery
-      ↓
-Review Worker
 ```
 
-AI review and GitHub Check integration will be added after the core review pipeline is reliable.
+Redis infrastructure is available. GitHub webhooks, Celery workers, static
+analysis, AI review, and GitHub Check integration are planned; reviews currently
+remain in their initial queued state.
 
 ---
 
