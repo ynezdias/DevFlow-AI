@@ -1,5 +1,27 @@
 services:
 
+  api:
+    build:
+      context: ./backend
+
+    container_name: devflow-api
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://devflow:devflow@postgres:5432/devflow
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: development
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+
   postgres:
     image: postgres:16
     container_name: devflow-postgres
