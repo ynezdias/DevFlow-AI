@@ -19,16 +19,16 @@ The project focuses not only on AI-powered code analysis, but also on building a
 - [x] Signed PR webhook ingestion with delivery deduplication
 - [x] Alembic migrations
 - [x] Docker Compose
+- [x] Celery worker scaffold (analysis not implemented)
 
 The API creates and retrieves review jobs. Duplicate requests for the same
 repository, pull-request number, and head SHA return HTTP 409. Persistence has
 been verified across a Compose restart. Redis is running as infrastructure;
-background review processing is not implemented yet.
+Celery runs a database-only worker scaffold; code analysis is not implemented yet.
 
 ### Planned
 
 - [ ] GitHub App deployment and verified real deliveries
-- [ ] Celery workers
 - [ ] Static analysis
 - [ ] AI reviewer
 - [ ] GitHub Check Runs
@@ -420,3 +420,7 @@ DevFlow AI is an experimental developer tool. AI-generated code-review findings 
 Webhook ingestion now supports opened, synchronize, and reopened PR events.
 Delivery IDs and review commit identities provide two database deduplication layers.
 A real GitHub delivery requires the App installation and public webhook URL to be configured.
+
+Celery queue foundation: supported webhooks now persist, enqueue, and return HTTP 202.
+The worker scaffold updates PostgreSQL; it does not run static analysis or an LLM.
+See [architecture](docs/architecture.md#celery-queue-foundation) for delivery recovery limits.

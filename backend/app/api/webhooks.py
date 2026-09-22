@@ -4,6 +4,8 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+from kombu.exceptions import OperationalError
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -13,6 +15,7 @@ from app.config import settings
 from app.db.session import get_db
 from app.models import ReviewJob, WebhookEvent
 from app.schemas.webhook import PullRequestTarget
+from app.workers.review_tasks import process_review
 
 SUPPORTED_ACTIONS = {"opened", "synchronize", "reopened"}
 logger = logging.getLogger("uvicorn.error")
@@ -59,31 +62,44 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
         except ValidationError:
             raise HTTPException(400, "Invalid pull request payload.")
 
-    # Both uniqueness checks and the job insert commit together. A failure rolls
-    # back the delivery claim, so a GitHub retry can safely try again.
+    # Commit before publishing: workers must be able to see the review row.
     with db.begin():
         claimed = db.scalar(insert(WebhookEvent).values(
             delivery_id=delivery_id, event_type=event_type,
             action=action[:100] if isinstance(action, str) else None,
-            status="processed" if target else "ignored",
+            status="pending" if target else "ignored",
         ).on_conflict_do_nothing(index_elements=[WebhookEvent.delivery_id])
             .returning(WebhookEvent.delivery_id))
-        if claimed is None:
+        event = db.get(WebhookEvent, delivery_id)
+        if claimed is None and event.status != "pending":
             return {"status": "duplicate"}
-        if target is None:
-            return {"status": "ignored"}
-        review_id = db.scalar(insert(ReviewJob).values(
-            repository_name=target.repository_name,
-            pull_request_number=target.pull_request_number, head_sha=target.head_sha,
-        ).on_conflict_do_nothing(constraint="uq_review_commit").returning(ReviewJob.id))
-        if review_id is None:
-            review_id = db.scalar(select(ReviewJob.id).where(
-                ReviewJob.repository_name == target.repository_name,
-                ReviewJob.pull_request_number == target.pull_request_number,
-                ReviewJob.head_sha == target.head_sha,
-            ))
+        if claimed is None:
+            review_id = event.review_id
+        else:
+            if target is None:
+                return {"status": "ignored"}
+            review_id = db.scalar(insert(ReviewJob).values(
+                repository_name=target.repository_name,
+                pull_request_number=target.pull_request_number, head_sha=target.head_sha,
+            ).on_conflict_do_nothing(constraint="uq_review_commit").returning(ReviewJob.id))
+            if review_id is None:
+                review_id = db.scalar(select(ReviewJob.id).where(
+                    ReviewJob.repository_name == target.repository_name,
+                    ReviewJob.pull_request_number == target.pull_request_number,
+                    ReviewJob.head_sha == target.head_sha,
+                ))
+            event.review_id = review_id
 
-    logger.info("GitHub webhook received event=%s action=%s repository=%s pr=%s sha=%s delivery=%s",
-                event_type, action, target.repository_name, target.pull_request_number,
-                target.head_sha, delivery_id)
-    return {"status": "accepted", "review_id": str(review_id), "review_target": target.model_dump()}
+    try:
+        process_review.apply_async(args=[str(review_id)], retry=False)
+    except (OperationalError, OSError):
+        logger.exception("Review publish failed delivery=%s review_id=%s", delivery_id, review_id)
+        raise HTTPException(503, "Review persisted; queue unavailable. Redeliver this webhook to retry.")
+
+    with db.begin():
+        db.get(WebhookEvent, delivery_id).status = "enqueued"
+    logger.info("GitHub webhook enqueued delivery=%s review_id=%s", delivery_id, review_id)
+    return JSONResponse(status_code=202, content={
+        "status": "accepted", "review_id": str(review_id),
+        "review_target": target.model_dump() if target else None,
+    })

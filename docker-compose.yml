@@ -23,6 +23,20 @@ services:
         condition: service_healthy
 
 
+  worker:
+    build:
+      context: ./backend
+    container_name: devflow-worker
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgresql+psycopg://devflow:devflow@postgres:5432/devflow
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgres:16
     container_name: devflow-postgres
