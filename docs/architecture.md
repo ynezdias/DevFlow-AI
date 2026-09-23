@@ -167,3 +167,53 @@ Celery uses `REDIS_URL` for its broker and expiring result state:
 
 The API still supports manual `POST /api/reviews` creation as before; automatic
 queue submission currently applies to supported GitHub webhooks.
+
+
+### Worker scaling verification
+
+The worker service has no fixed container name. Scale it with
+`docker compose up -d --scale worker=3` and follow execution with
+`docker compose logs -f worker`. Each container currently has two execution
+processes (`--concurrency=2`), giving six execution slots across three replicas.
+
+A local signed-webhook test on 2026-09-23 submitted 12 distinct review targets.
+All requests returned 202 and all reviews completed with attempt_count=1.
+Logs confirmed four jobs on each worker replica; PostgreSQL timestamps showed
+six overlapping executions. This was a local signed test, not a real GitHub PR
+delivery. The scaffold changes processing and completed within one transaction,
+so processing is not separately observable through another database connection.
+
+
+## GitHub changed-file retrieval
+
+The worker now replaces simulated work with GitHub App installation authentication
+and changed-file retrieval. `app/services/github_service.py` owns JWT signing,
+installation-token exchange/expiry, PR lookup, paginated file listing, file-content
+lookup, and an optional Check Run helper. Check Runs are not published by the worker.
+No personal access token is used.
+
+Configuration: set `GITHUB_APP_ID` in the ignored root `.env`, and place the App
+private key at `.secrets/github-app.pem`. The worker mounts this directory read-only
+at `/run/secrets`. `GITHUB_PRIVATE_KEY_PATH` is the container path. PEM/key files
+are ignored by Git and excluded from the backend build context. Grant the App
+Pull requests: read for PR retrieval, Contents: read for content lookup, and only
+add Checks: write when Check Runs are enabled. Install it on the target repository.
+
+The authenticated webhook persists `installation_id`. Redis still carries only
+the review UUID. The worker commits `processing`, releases its database transaction,
+fetches GitHub data, then stores `changed_files` as JSONB and finishes the job.
+Each file contains filename, status, additions, deletions, changes, and patch.
+Missing patches (including binary files) remain null; GitHub patches may be
+incomplete and this implementation does not reconstruct missing hunks.
+
+Pagination uses 100 files per page. PRs beyond GitHub's 3,000-file limit fail
+explicitly. Head/base changes during retrieval mark the job superseded. Safe
+error codes are persisted without tokens, key material, or response bodies.
+`completed` currently means retrieval succeeded, not AI review. Failed tasks
+are not automatically retried; crash recovery for stuck processing jobs remains
+future reliability work. Historical/manual jobs without an installation ID fail
+with `missing_installation_id` if submitted to the worker.
+
+Validation uses mocked GitHub responses and temporary test signing keys. A live
+App-authenticated retrieval requires the user's App ID, private key, installation,
+and repository permissions; local tests do not establish that configuration.

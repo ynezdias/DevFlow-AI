@@ -229,7 +229,8 @@ def test_queue_failure_can_redeliver(database, publisher):
     assert database.get(WebhookEvent, delivery).status == "enqueued"
 
 
-def test_worker_redelivery_is_idempotent(database, monkeypatch):
+@pytest.mark.parametrize("outcome", ["completed", "failed", "superseded"])
+def test_worker_redelivery_is_idempotent(database, monkeypatch, outcome):
     from contextlib import contextmanager
     from types import SimpleNamespace
     from uuid import UUID
@@ -243,9 +244,22 @@ def test_worker_redelivery_is_idempotent(database, monkeypatch):
             yield database
 
     monkeypatch.setattr(tasks, "SessionLocal", SimpleNamespace(begin=transaction))
-    assert tasks.process_review.run(review_id)["status"] == "completed"
+    fake_github = Mock()
+    fake_github.__enter__ = Mock(return_value=fake_github)
+    fake_github.__exit__ = Mock(return_value=False)
+    files = [{"filename": "app.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@ -0,0 +1 @@"}]
+    fake_github.get_review_files.return_value = files
+    if outcome == "failed":
+        fake_github.get_review_files.side_effect = tasks.GitHubError("github_http_403")
+    elif outcome == "superseded":
+        fake_github.get_review_files.side_effect = tasks.StalePullRequest("head_changed")
+    monkeypatch.setattr(tasks, "GitHubService", Mock(return_value=fake_github))
+    assert tasks.process_review.run(review_id)["status"] == outcome
     assert tasks.process_review.run(review_id)["status"] == "skipped"
     review = database.get(ReviewJob, UUID(review_id))
+    assert review.changed_files == (files if outcome == "completed" else None)
+    assert review.installation_id == 456
+    fake_github.get_review_files.assert_called_once()
     assert review.attempt_count == 1
     assert review.started_at is not None
     assert review.completed_at >= review.started_at
