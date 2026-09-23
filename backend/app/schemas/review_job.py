@@ -18,6 +18,9 @@ class ReviewJobResponse(BaseModel):
     head_sha: str
     status: Literal["queued", "processing", "completed", "failed", "superseded"]
     attempt_count: int
+    installation_id: int | None = None
+    changed_files: list[dict] | None = None
+    error_code: str | None = None
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
