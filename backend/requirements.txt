@@ -8,3 +8,4 @@ redis
 pytest
 httpx
 celery[redis]
+PyJWT[crypto]

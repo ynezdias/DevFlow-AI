@@ -424,3 +424,8 @@ A real GitHub delivery requires the App installation and public webhook URL to b
 Celery queue foundation: supported webhooks now persist, enqueue, and return HTTP 202.
 The worker scaffold updates PostgreSQL; it does not run static analysis or an LLM.
 See [architecture](docs/architecture.md#celery-queue-foundation) for delivery recovery limits.
+
+GitHub App service and worker changed-file retrieval are implemented. Configure
+`GITHUB_APP_ID` and the ignored `.secrets/github-app.pem` before live use. Review
+responses expose persisted `changed_files` (including patches) and safe error codes.
+Completion currently means diff retrieval, not AI analysis.

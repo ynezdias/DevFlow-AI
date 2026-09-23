@@ -26,11 +26,14 @@ services:
   worker:
     build:
       context: ./backend
-    container_name: devflow-worker
     command: celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2
     environment:
       DATABASE_URL: postgresql+psycopg://devflow:devflow@postgres:5432/devflow
       REDIS_URL: redis://redis:6379/0
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_PRIVATE_KEY_PATH: ${GITHUB_PRIVATE_KEY_PATH:-/run/secrets/github-app.pem}
+    volumes:
+      - ./.secrets:/run/secrets:ro
     depends_on:
       postgres:
         condition: service_healthy

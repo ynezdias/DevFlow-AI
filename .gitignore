@@ -17,3 +17,8 @@ __pycache__/
 # Test coverage
 .coverage
 htmlcov/
+
+# GitHub App credentials
+.secrets/
+*.pem
+*.key

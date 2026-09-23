@@ -9,6 +9,8 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://redis:6379/0"
     environment: str = "development"
+    github_app_id: str = ""
+    github_private_key_path: str = ""
     github_webhook_secret: SecretStr = SecretStr("")
 
     model_config = SettingsConfigDict(

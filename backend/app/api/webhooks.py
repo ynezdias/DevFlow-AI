@@ -79,6 +79,7 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
             if target is None:
                 return {"status": "ignored"}
             review_id = db.scalar(insert(ReviewJob).values(
+                installation_id=target.installation_id,
                 repository_name=target.repository_name,
                 pull_request_number=target.pull_request_number, head_sha=target.head_sha,
             ).on_conflict_do_nothing(constraint="uq_review_commit").returning(ReviewJob.id))
