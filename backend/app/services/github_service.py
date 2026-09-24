@@ -9,10 +9,18 @@ import httpx
 import jwt
 
 from app.config import settings
+from app.schemas.changed_file import ChangedFile, PullRequestSnapshot
+from pydantic import ValidationError
 
 
 class GitHubError(RuntimeError):
     pass
+
+
+class TemporaryGitHubError(GitHubError):
+    def __init__(self, code, retry_after=None):
+        super().__init__(code)
+        self.retry_after = retry_after
 
 
 class StalePullRequest(GitHubError):
@@ -39,7 +47,22 @@ class GitHubService:
         try:
             response = self.client.request(method, path, **kwargs)
         except httpx.RequestError:
-            raise GitHubError("github_unavailable") from None
+            raise TemporaryGitHubError("github_unavailable") from None
+        if response.status_code in {408, 429} or response.status_code >= 500 or (
+            response.status_code == 403 and (
+                response.headers.get("x-ratelimit-remaining") == "0" or "retry-after" in response.headers
+                or "rate limit" in response.text.lower()
+            )
+        ):
+            delay = 60
+            try:
+                if "retry-after" in response.headers:
+                    delay = max(delay, int(response.headers["retry-after"]))
+                if response.headers.get("x-ratelimit-remaining") == "0":
+                    delay = max(delay, int(response.headers.get("x-ratelimit-reset", "0")) - int(time.time()) + 1)
+            except ValueError:
+                pass
+            raise TemporaryGitHubError(f"github_http_{response.status_code}", retry_after=delay)
         if response.status_code >= 400:
             # Do not expose response bodies, tokens, or private-key material.
             raise GitHubError(f"github_http_{response.status_code}")
@@ -90,15 +113,17 @@ class GitHubService:
                 raise GitHubError("github_invalid_files_response")
             for item in batch:
                 try:
-                    files.append({**{key: item[key] for key in
-                        ("filename", "status", "additions", "deletions", "changes")}, "patch": item.get("patch")})
-                except (KeyError, TypeError):
+                    files.append(ChangedFile.model_validate(item))
+                except (ValidationError, TypeError):
                     raise GitHubError("github_invalid_files_response") from None
             if len(batch) < 100:
                 break
         return files
 
     def get_review_files(self, repository, number, head_sha):
+        return self.get_review_snapshot(repository, number, head_sha).files
+
+    def get_review_snapshot(self, repository, number, head_sha):
         before = self.get_pull_request(repository, number)
         if before["head"]["sha"] != head_sha:
             raise StalePullRequest("head_changed")
@@ -110,7 +135,8 @@ class GitHubService:
             raise StalePullRequest("head_or_base_changed")
         if len(files) != after["changed_files"]:
             raise GitHubError("github_incomplete_files")
-        return files
+        return PullRequestSnapshot(github_repository_id=before["base"]["repo"]["id"],
+                                   base_sha=before["base"]["sha"], head_sha=head_sha, files=files)
 
     def get_file_content(self, repository, path, ref):
         result = self._api("GET", f"{self._repo(repository)}/contents/{quote(path, safe='/')}", params={"ref": ref})
