@@ -30,6 +30,9 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://devflow:devflow@postgres:5432/devflow
       REDIS_URL: redis://redis:6379/0
+      MAX_FILES: ${MAX_FILES:-20}
+      MAX_PATCH_CHARS_PER_FILE: ${MAX_PATCH_CHARS_PER_FILE:-20000}
+      MAX_TOTAL_PATCH_CHARS: ${MAX_TOTAL_PATCH_CHARS:-100000}
       GITHUB_APP_ID: ${GITHUB_APP_ID:-}
       GITHUB_PRIVATE_KEY_PATH: ${GITHUB_PRIVATE_KEY_PATH:-/run/secrets/github-app.pem}
     volumes:

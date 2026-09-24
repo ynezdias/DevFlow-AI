@@ -429,3 +429,14 @@ GitHub App service and worker changed-file retrieval are implemented. Configure
 `GITHUB_APP_ID` and the ignored `.secrets/github-app.pem` before live use. Review
 responses expose persisted `changed_files` (including patches) and safe error codes.
 Completion currently means diff retrieval, not AI analysis.
+
+
+Review scope defaults: 20 Python files, 20,000 patch characters per file, and
+100,000 total patch characters. Configure `MAX_FILES`,
+`MAX_PATCH_CHARS_PER_FILE`, and `MAX_TOTAL_PATCH_CHARS` in `.env`, then recreate
+workers. Review responses include typed selected files, repository/base metadata,
+and `scope_summary` with every skipped filename and reason. Temporary GitHub
+failures receive bounded retries; no LLM calls are made yet.
+
+Development evidence: [Engineering log](docs/engineering-log.md) records observed
+failures, design decisions, measurements, and intentional PR fixtures.
