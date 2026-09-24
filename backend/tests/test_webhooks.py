@@ -94,7 +94,7 @@ def pr_payload(action="opened", sha="a" * 40):
     return {
         "action": action,
         "repository": {"id": 123, "full_name": "ynezdias/devflow-test"},
-        "pull_request": {"number": 7, "head": {"sha": sha}},
+        "pull_request": {"number": 7, "head": {"sha": sha}, "base": {"sha": "c" * 40}},
         "installation": {"id": 456},
     }
 
@@ -121,7 +121,7 @@ def test_supported_action_extracts_target(action):
         "review_target": {
             "repository_id": 123, "repository_name": "ynezdias/devflow-test",
             "pull_request_number": 7, "head_sha": "a" * 40,
-            "installation_id": 456,
+            "installation_id": 456, "base_sha": "c" * 40,
         },
     }
 
@@ -248,18 +248,67 @@ def test_worker_redelivery_is_idempotent(database, monkeypatch, outcome):
     fake_github.__enter__ = Mock(return_value=fake_github)
     fake_github.__exit__ = Mock(return_value=False)
     files = [{"filename": "app.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@ -0,0 +1 @@"}]
-    fake_github.get_review_files.return_value = files
+    from app.schemas.changed_file import PullRequestSnapshot
+    fake_github.get_review_snapshot.return_value = PullRequestSnapshot(github_repository_id=123, base_sha="c"*40, head_sha="a"*40, files=files + [{"filename":"image.png", "status":"added", "additions":0, "deletions":0, "changes":0}])
     if outcome == "failed":
-        fake_github.get_review_files.side_effect = tasks.GitHubError("github_http_403")
+        fake_github.get_review_snapshot.side_effect = tasks.GitHubError("github_http_403")
     elif outcome == "superseded":
-        fake_github.get_review_files.side_effect = tasks.StalePullRequest("head_changed")
+        fake_github.get_review_snapshot.side_effect = tasks.StalePullRequest("head_changed")
     monkeypatch.setattr(tasks, "GitHubService", Mock(return_value=fake_github))
-    assert tasks.process_review.run(review_id)["status"] == outcome
+    if outcome == "failed":
+        with pytest.raises(tasks.GitHubError):
+            tasks.process_review.run(review_id)
+    else:
+        assert tasks.process_review.run(review_id)["status"] == outcome
     assert tasks.process_review.run(review_id)["status"] == "skipped"
     review = database.get(ReviewJob, UUID(review_id))
     assert review.changed_files == (files if outcome == "completed" else None)
+    assert review.github_repository_id == 123
+    assert review.base_sha == "c" * 40
+    if outcome == "completed":
+        assert review.scope_summary["limited"] is True
+        assert review.scope_summary["skipped_files"][0]["filename"] == "image.png"
     assert review.installation_id == 456
-    fake_github.get_review_files.assert_called_once()
+    fake_github.get_review_snapshot.assert_called_once()
     assert review.attempt_count == 1
     assert review.started_at is not None
     assert review.completed_at >= review.started_at
+
+
+@pytest.mark.parametrize("scenario", ["retry", "exhausted", "publish_failed"])
+def test_temporary_worker_failure(database, monkeypatch, scenario):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from uuid import UUID
+    from celery.exceptions import Retry
+    import app.workers.review_tasks as tasks
+    review_id = send_event(pr_payload()).json()["review_id"]
+    @contextmanager
+    def transaction():
+        with database.begin():
+            yield database
+    monkeypatch.setattr(tasks, "SessionLocal", SimpleNamespace(begin=transaction))
+    github = Mock()
+    github.__enter__ = Mock(return_value=github)
+    github.__exit__ = Mock(return_value=False)
+    github.get_review_snapshot.side_effect = tasks.TemporaryGitHubError("github_http_429", retry_after=120)
+    monkeypatch.setattr(tasks, "GitHubService", Mock(return_value=github))
+    retries = 3 if scenario == "exhausted" else 0
+    tasks.process_review.push_request(retries=retries)
+    retry = Mock(side_effect=RuntimeError("publish unavailable") if scenario == "publish_failed" else Retry())
+    monkeypatch.setattr(tasks.process_review, "retry", retry)
+    try:
+        expected = tasks.TemporaryGitHubError if scenario == "exhausted" else (RuntimeError if scenario == "publish_failed" else Retry)
+        with pytest.raises(expected):
+            tasks.process_review.run(review_id)
+    finally:
+        tasks.process_review.pop_request()
+    job = database.get(ReviewJob, UUID(review_id))
+    assert job.status == ("queued" if scenario == "retry" else "failed")
+    assert job.attempt_count == 1
+    if scenario == "retry":
+        assert retry.call_args.kwargs["countdown"] == 120
+        assert job.completed_at is None
+    if scenario == "exhausted":
+        retry.assert_not_called()
+        assert job.error_code == "github_retry_exhausted"

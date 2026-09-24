@@ -1,0 +1,42 @@
+{
+  "repository": "ynezdias/devflow-test-repo",
+  "verification": "GitHub REST fixture verification using developer credentials; NOT DevFlow App authentication or webhook end-to-end verification",
+  "pull_requests": [
+    {
+      "url": "https://github.com/ynezdias/devflow-test-repo/pull/2",
+      "number": 2,
+      "head_sha": "b27a65443e1f6619e5f2547b5b77132131eb0082",
+      "base_sha": "03007204021b1e087c43ec5e7c605e18896d0295",
+      "filename": "examples/calculate_total.py",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "patch": "@@ -0,0 +1,2 @@\n+def calculate_total(items):\n+    return sum(item[\"price\"] for item in items)"
+    },
+    {
+      "url": "https://github.com/ynezdias/devflow-test-repo/pull/3",
+      "number": 3,
+      "head_sha": "00f553cfc910e492368bf3b44f5aaf3cae7d16df",
+      "base_sha": "03007204021b1e087c43ec5e7c605e18896d0295",
+      "filename": "examples/divide.py",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "patch": "@@ -0,0 +1,2 @@\n+def divide(a, b):\n+    return a / b"
+    },
+    {
+      "url": "https://github.com/ynezdias/devflow-test-repo/pull/4",
+      "number": 4,
+      "head_sha": "99a3373b1ee3da04abdbd48b95343d756e346c27",
+      "base_sha": "03007204021b1e087c43ec5e7c605e18896d0295",
+      "filename": "examples/get_user.py",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "changes": 2,
+      "patch": "@@ -0,0 +1,2 @@\n+def get_user(users, index):\n+    return users[index]"
+    }
+  ]
+}

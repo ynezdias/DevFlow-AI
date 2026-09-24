@@ -217,3 +217,59 @@ with `missing_installation_id` if submitted to the worker.
 Validation uses mocked GitHub responses and temporary test signing keys. A live
 App-authenticated retrieval requires the user's App ID, private key, installation,
 and repository permissions; local tests do not establish that configuration.
+
+
+## Review scope and retry policy
+
+The service converts GitHub responses to `ChangedFile` models at the boundary.
+The worker uses a typed PR snapshot, then selects Python patches in filename
+order. `MAX_FILES=20`, `MAX_PATCH_CHARS_PER_FILE=20000`, and
+`MAX_TOTAL_PATCH_CHARS=100000` are positive configurable starting limits passed
+to workers through Compose. Character counts use Python string length, not tokens.
+
+Only `.py` is eligible. Vendor/build/generated directories, lock files, generated
+filename/header markers, removed files, missing patches, and recognized binary
+patches are excluded. Generated/binary detection is conservative and heuristic;
+GitHub may omit or truncate patches, and missing hunks are not reconstructed.
+Oversized patches are skipped whole, never silently sliced. File and total limits
+apply to selected files. Smaller later files may fit after an oversized file is
+skipped. Every decision is persisted in `scope_summary.skipped_files`, including
+reason and original patch length; only selected files retain their patch content.
+`status=completed` with `scope_summary.limited=true` means retrieval finished with
+omissions. It does not mean an AI review has happened. The summary stores the
+limits used so future configuration changes do not erase that context.
+
+Review jobs retain denormalized `github_repository_id`, `installation_id`, PR
+number, head SHA, and base SHA. Webhook metadata is persisted initially; successful
+retrieval records the stable snapshot's repository ID and base SHA. Historical
+rows remain nullable rather than inventing missing identifiers.
+
+Timeouts, 408/429, 5xx, and rate-limit 403 responses are temporary failures. The
+worker resets the job to queued and requests up to three Celery retries with
+exponential backoff, respecting longer GitHub Retry-After/reset delays. Attempts
+are capped at four across duplicate deliveries as well. Permanent failures and
+exhausted retries persist failed state and raise so Celery records task failure.
+Retry publication failure records `retry_publish_failed`. Crash recovery and a
+transactional outbox remain future work; this is not exactly-once execution.
+
+
+## Day 5 retrieval architecture
+
+```mermaid
+flowchart TD
+    GH[GitHub pull request] -->|Signed webhook| API[FastAPI: verify, validate, deduplicate]
+    API --> DB[(PostgreSQL: webhook_events and review_jobs)]
+    DB -->|Commit, then enqueue job ID| Q[Redis]
+    Q --> W[Celery worker]
+    W -->|App installation token| GAPI[GitHub API]
+    GAPI --> DIFF[Typed changed files and patches]
+    DIFF --> SCOPE[Python filtering and recorded scope limits]
+    SCOPE --> DB
+```
+
+This is the implemented target path. The live GitHub App/public-webhook connection
+is not yet verified because the worker's App ID and private key are unconfigured.
+See the [engineering log](engineering-log.md) for the three intentional PRs,
+actual local measurements, and the distinction between fixture verification and
+end-to-end App-authenticated retrieval. Ruff, Bandit, and LLM findings remain
+future work and are not part of this diagram's implemented processing.
