@@ -74,3 +74,7 @@ class ReviewJob(Base):
     installation_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     changed_files: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    github_repository_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    base_sha: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    scope_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
