@@ -41,7 +41,7 @@ def test_jwt_exchange_pagination_and_missing_patch(key_file):
         return httpx.Response(200, json=[item]*100 if request.url.params["page"] == "1" else [dict(item, filename="app.py", patch="@@ diff")])
     with service(key_file, handler) as github:
         files = github.get_pull_request_files("owner/repo", 7)
-    assert len(files) == 101 and files[0]["patch"] is None and files[-1]["patch"] == "@@ diff"
+    assert len(files) == 101 and files[0].patch is None and files[-1].patch == "@@ diff"
     assert len(calls) == 3
 
 
@@ -77,7 +77,7 @@ def test_review_snapshot_validation(key_file, mode):
             return httpx.Response(200,json=[])
         reads += 1
         sha = "other" if mode == "stale" or (mode == "changed_during_fetch" and reads == 2) else "head"
-        return httpx.Response(200,json={"head":{"sha":sha},"base":{"sha":"base"},"changed_files":3001 if mode=="too_large" else (1 if mode=="incomplete" else 0)})
+        return httpx.Response(200,json={"head":{"sha":sha},"base":{"sha":"base","repo":{"id":123}},"changed_files":3001 if mode=="too_large" else (1 if mode=="incomplete" else 0)})
     with service(key_file, handler) as github:
         if mode == "success":
             assert github.get_review_files("owner/repo",7,"head") == []
@@ -112,3 +112,14 @@ def test_network_timeout_is_sanitized(key_file):
     with service(key_file, handler) as github:
         with pytest.raises(GitHubError, match="^github_unavailable$"):
             github.get_pull_request("owner/repo",7)
+
+
+@pytest.mark.parametrize("status,headers", [(429, {"retry-after":"120"}), (503, {}), (403,{"x-ratelimit-remaining":"0","x-ratelimit-reset":str(int(time.time())+300)})])
+def test_transient_errors_have_retry_delay(key_file, status, headers):
+    from app.services.github_service import TemporaryGitHubError
+    with service(key_file, lambda r: httpx.Response(status,headers=headers)) as github:
+        with pytest.raises(TemporaryGitHubError) as error:
+            github.get_pull_request("owner/repo",7)
+        assert error.value.retry_after >= 60
+        if status == 429:
+            assert error.value.retry_after == 120
