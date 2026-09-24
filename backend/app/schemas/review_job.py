@@ -3,6 +3,7 @@ from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+from app.schemas.changed_file import ChangedFile, ScopeSummary
 
 
 class ReviewJobCreate(BaseModel):
@@ -19,7 +20,10 @@ class ReviewJobResponse(BaseModel):
     status: Literal["queued", "processing", "completed", "failed", "superseded"]
     attempt_count: int
     installation_id: int | None = None
-    changed_files: list[dict] | None = None
+    github_repository_id: int | None = None
+    base_sha: str | None = None
+    scope_summary: ScopeSummary | None = None
+    changed_files: list[ChangedFile] | None = None
     error_code: str | None = None
     created_at: datetime
     started_at: datetime | None
