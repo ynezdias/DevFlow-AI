@@ -78,3 +78,6 @@ class ReviewJob(Base):
     github_repository_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     base_sha: Mapped[str | None] = mapped_column(String(40), nullable=True)
     scope_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    github_check_run_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    publication_status: Mapped[str | None] = mapped_column(String(32), nullable=True)

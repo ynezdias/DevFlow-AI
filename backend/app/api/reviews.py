@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.review_job import ReviewJob
+from app.models.finding import Finding
+from app.schemas.finding import FindingResponse
 from app.schemas.review_job import ReviewJobCreate, ReviewJobResponse
 
 
@@ -67,3 +69,22 @@ def get_review(
         )
 
     return review
+
+@router.get("/{review_id}/findings", response_model=list[FindingResponse])
+def get_review_findings(review_id: UUID, db: Session = Depends(get_db)):
+    if db.get(ReviewJob, review_id) is None:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    return db.scalars(select(Finding).where(Finding.review_job_id == review_id).order_by(
+        Finding.file_path, Finding.line_number, Finding.source, Finding.category
+    )).all()
+
+
+@router.get("/{review_id}/report")
+def get_review_report(review_id: UUID, db: Session = Depends(get_db)):
+    review = db.get(ReviewJob, review_id)
+    if review is None:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    report = (review.scope_summary or {}).get("report")
+    if not report or review.status not in {"completed", "failed"}:
+        raise HTTPException(status_code=409, detail="Validated report is not available for this review.")
+    return report
