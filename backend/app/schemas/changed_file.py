@@ -24,6 +24,8 @@ class SkippedFile(BaseModel):
 
 
 class ScopeSummary(BaseModel):
+    ai: dict | None = None
+    report: dict | None = None
     limited: bool
     total_files: int
     selected_files: int
