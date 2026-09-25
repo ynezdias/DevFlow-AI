@@ -229,12 +229,20 @@ def test_queue_failure_can_redeliver(database, publisher):
     assert database.get(WebhookEvent, delivery).status == "enqueued"
 
 
+@pytest.mark.parametrize("ai_enabled", [False, True])
 @pytest.mark.parametrize("outcome", ["completed", "failed", "superseded"])
-def test_worker_redelivery_is_idempotent(database, monkeypatch, outcome):
+def test_worker_redelivery_is_idempotent(database, monkeypatch, outcome, ai_enabled):
     from contextlib import contextmanager
     from types import SimpleNamespace
     from uuid import UUID
     import app.workers.review_tasks as tasks
+    monkeypatch.setattr(tasks.settings, "ai_enabled", ai_enabled)
+    from app.schemas.finding import CodeFinding
+    ai = Mock()
+    ai.analyze_files.return_value = ([CodeFinding(file_path="app.py", line_number=1,
+        source="ai", category="test", severity="low", title="Fixture", description="Fixture finding",
+        suggestion="Fixture suggestion")], {"enabled": True, "skipped_files": []})
+    monkeypatch.setattr(tasks, "AIReviewer", Mock(return_value=ai))
     response = send_event(pr_payload())
     review_id = response.json()["review_id"]
 
@@ -247,8 +255,9 @@ def test_worker_redelivery_is_idempotent(database, monkeypatch, outcome):
     fake_github = Mock()
     fake_github.__enter__ = Mock(return_value=fake_github)
     fake_github.__exit__ = Mock(return_value=False)
-    files = [{"filename": "app.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@ -0,0 +1 @@"}]
+    files = [{"filename": "app.py", "status": "modified", "additions": 1, "deletions": 0, "changes": 1, "patch": "@@ -0,0 +1 @@\n+import os"}]
     from app.schemas.changed_file import PullRequestSnapshot
+    fake_github.get_file_content.return_value = b"import os\n"
     fake_github.get_review_snapshot.return_value = PullRequestSnapshot(github_repository_id=123, base_sha="c"*40, head_sha="a"*40, files=files + [{"filename":"image.png", "status":"added", "additions":0, "deletions":0, "changes":0}])
     if outcome == "failed":
         fake_github.get_review_snapshot.side_effect = tasks.GitHubError("github_http_403")
@@ -270,6 +279,26 @@ def test_worker_redelivery_is_idempotent(database, monkeypatch, outcome):
         assert review.scope_summary["skipped_files"][0]["filename"] == "image.png"
     assert review.installation_id == 456
     fake_github.get_review_snapshot.assert_called_once()
+    from app.models import Finding
+    saved = database.scalars(select(Finding).where(Finding.review_job_id == UUID(review_id))).all()
+    if outcome == "completed":
+        fake_github.get_file_content.assert_called_once_with("ynezdias/devflow-test", "app.py", "a"*40)
+        assert len(saved) == (2 if ai_enabled else 1)
+        static = next(f for f in saved if f.source == "ruff")
+        assert (static.category, static.file_path, static.line_number) == ("F401", "app.py", 1)
+        assert review.scope_summary["ai"]["enabled"] == ai_enabled
+        assert ai.analyze_files.call_count == int(ai_enabled)
+        response = client.get(f"/api/reviews/{review_id}/findings")
+        assert response.status_code == 200
+        assert response.json()[0]["review_job_id"] == review_id
+        report = client.get(f"/api/reviews/{review_id}/report")
+        assert report.status_code == 200
+        data = report.json()
+        assert data["summary"]["total_findings"] == len(data["findings"]) == len(saved)
+        assert len(data["original_findings"]) == len(saved)
+        assert data["analysis"]["ai_analysis"] == ("completed" if ai_enabled else "disabled")
+    else:
+        assert saved == []
     assert review.attempt_count == 1
     assert review.started_at is not None
     assert review.completed_at >= review.started_at
@@ -312,3 +341,88 @@ def test_temporary_worker_failure(database, monkeypatch, scenario):
     if scenario == "exhausted":
         retry.assert_not_called()
         assert job.error_code == "github_retry_exhausted"
+
+
+@pytest.mark.parametrize("static_fails,ai_fails", [(False, True), (True, False), (True, True)])
+def test_partial_analysis_preserved(database, monkeypatch, static_fails, ai_fails):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from uuid import UUID
+    from app.models import Finding
+    from app.schemas.finding import CodeFinding
+    from app.schemas.changed_file import PullRequestSnapshot
+    import app.workers.review_tasks as tasks
+    monkeypatch.setattr(tasks.settings, "ai_enabled", True)
+    review_id = send_event(pr_payload()).json()["review_id"]
+    @contextmanager
+    def transaction():
+        with database.begin():
+            yield database
+    monkeypatch.setattr(tasks, "SessionLocal", SimpleNamespace(begin=transaction))
+    github = Mock()
+    github.__enter__ = Mock(return_value=github)
+    github.__exit__ = Mock(return_value=False)
+    github.get_file_content.return_value = b"import os\n"
+    github.get_review_snapshot.return_value = PullRequestSnapshot(
+        github_repository_id=123, base_sha="c"*40, head_sha="a"*40,
+        files=[dict(filename="app.py", status="added", additions=1, deletions=0,
+                    changes=1, patch="@@ -0,0 +1 @@\n+import os")])
+    monkeypatch.setattr(tasks, "GitHubService", Mock(return_value=github))
+    if static_fails:
+        monkeypatch.setattr(tasks.StaticAnalyzer, "analyze", Mock(side_effect=tasks.StaticAnalysisError("tool failed")))
+    ai = Mock()
+    if ai_fails:
+        ai.analyze_files.side_effect = tasks.AIReviewError("ai_transport_error")
+    else:
+        ai.analyze_files.return_value = ([CodeFinding(file_path="app.py", line_number=1,
+            source="ai", category="fixture", severity="low", title="Fixture", description="Fixture")],
+            {"enabled": True, "skipped_files": []})
+    monkeypatch.setattr(tasks, "AIReviewer", Mock(return_value=ai))
+    assert tasks.process_review.run(review_id)["status"] == "failed"
+    assert tasks.process_review.run(review_id)["status"] == "skipped"
+    job = database.get(ReviewJob, UUID(review_id))
+    assert job.status == "failed"
+    assert job.error_code == "analysis_incomplete"
+    report_response = client.get(f"/api/reviews/{review_id}/report")
+    assert report_response.status_code == 200
+    report = report_response.json()
+    assert report["status"] == "failed"
+    assert report["analysis"] == {"static_analysis": "failed" if static_fails else "completed",
+                                  "ai_analysis": "failed" if ai_fails else "completed"}
+    count = int(not static_fails) + int(not ai_fails)
+    assert report["summary"]["total_findings"] == len(report["findings"]) == count
+    assert len(database.scalars(select(Finding).where(Finding.review_job_id == UUID(review_id))).all()) == count
+
+
+def test_publication_task_persists_id_and_reuses_check(database, monkeypatch):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from uuid import UUID
+    import app.workers.publication_tasks as publication
+    review_id = send_event(pr_payload()).json()["review_id"]
+    review = database.get(ReviewJob, UUID(review_id))
+    review.status = "completed"
+    review.changed_files = []
+    review.scope_summary = {"report": {"review_id": review_id, "status": "completed",
+        "findings": [], "analysis": {"static_analysis": "completed", "ai_analysis": "completed"}}}
+    database.commit()
+    @contextmanager
+    def transaction():
+        with database.begin():
+            yield database
+    monkeypatch.setattr(publication, "SessionLocal", SimpleNamespace(begin=transaction))
+    github = Mock()
+    github.__enter__ = Mock(return_value=github)
+    github.__exit__ = Mock(return_value=False)
+    github.get_pull_request.return_value = {"head": {"sha": "a"*40}}
+    github.list_check_runs.return_value = []
+    github.list_check_annotations.return_value = []
+    github.create_check_run.return_value = {"id": 12345}
+    monkeypatch.setattr(publication, "GitHubService", Mock(return_value=github))
+    assert publication.publish_review.run(review_id) == {"status": "published"}
+    assert publication.publish_review.run(review_id) == {"status": "published"}
+    review = database.get(ReviewJob, UUID(review_id))
+    assert review.github_check_run_id == 12345
+    assert review.publication_status == "published"
+    github.create_check_run.assert_called_once()
+    assert github.update_check_run.call_count == 2
