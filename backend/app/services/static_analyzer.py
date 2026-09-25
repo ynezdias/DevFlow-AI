@@ -2,7 +2,6 @@
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
@@ -10,6 +9,7 @@ import tempfile
 
 from pydantic import ValidationError
 from app.config import settings
+from app.services.diff_parser import parse_diff, DiffParseError
 from app.schemas.finding import AnalysisFile, CodeFinding
 
 
@@ -18,41 +18,10 @@ class StaticAnalysisError(RuntimeError):
 
 
 def changed_lines(patch: str) -> set[int]:
-    """New-side added lines only, including additions replacing deleted lines."""
-    added = set()
-    old_left = new_left = 0
-    line = 0
-    seen = False
-    for text in patch.splitlines():
-        if text.startswith("@@"):
-            if old_left or new_left:
-                raise StaticAnalysisError("incomplete_diff_hunk")
-            match = re.match(r"^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", text)
-            if not match:
-                raise StaticAnalysisError("invalid_diff_hunk")
-            old_left = int(match[1]) if match[1] is not None else 1
-            line = int(match[2])
-            new_left = int(match[3]) if match[3] is not None else 1
-            seen = True
-        elif text.startswith("\\ No newline") or text.startswith("\ No newline"):
-            continue
-        elif seen and text.startswith("+"):
-            added.add(line)
-            line += 1
-            new_left -= 1
-        elif seen and text.startswith("-"):
-            old_left -= 1
-        elif seen and text.startswith(" "):
-            line += 1
-            old_left -= 1
-            new_left -= 1
-        else:
-            raise StaticAnalysisError("invalid_diff_body")
-        if old_left < 0 or new_left < 0:
-            raise StaticAnalysisError("invalid_diff_counts")
-    if not seen or old_left or new_left:
-        raise StaticAnalysisError("incomplete_diff_hunk")
-    return added
+    try:
+        return parse_diff(patch).added_lines
+    except DiffParseError as exc:
+        raise StaticAnalysisError(str(exc)) from None
 
 
 class StaticAnalyzer:
