@@ -9,3 +9,5 @@ pytest
 httpx
 celery[redis]
 PyJWT[crypto]
+ruff
+bandit

@@ -390,9 +390,9 @@ FastAPI review-job API
 PostgreSQL
 ```
 
-Signed PR webhook ingestion and Redis infrastructure are available. Celery workers, static
-analysis, AI review, and GitHub Check integration are planned; reviews currently
-remain in their initial queued state.
+Signed PR webhook ingestion, Celery processing, PostgreSQL persistence, and static
+analysis are implemented. Gemini AI review is implemented; GitHub Check publishing is implemented; live App verification requires credentials.
+Live GitHub App delivery still requires credentials and a reachable webhook URL.
 
 ---
 
@@ -422,13 +422,14 @@ Delivery IDs and review commit identities provide two database deduplication lay
 A real GitHub delivery requires the App installation and public webhook URL to be configured.
 
 Celery queue foundation: supported webhooks now persist, enqueue, and return HTTP 202.
-The worker scaffold updates PostgreSQL; it does not run static analysis or an LLM.
+Workers retrieve full Python source at the review head SHA and run Ruff and Bandit. Gemini review runs when `AI_ENABLED=true`.
 See [architecture](docs/architecture.md#celery-queue-foundation) for delivery recovery limits.
 
 GitHub App service and worker changed-file retrieval are implemented. Configure
 `GITHUB_APP_ID` and the ignored `.secrets/github-app.pem` before live use. Review
 responses expose persisted `changed_files` (including patches) and safe error codes.
-Completion currently means diff retrieval, not AI analysis.
+Completion means scoped static analysis, optional Gemini review, and persisted findings. Read them with
+`GET /api/reviews/{review_id}/findings`. Only findings starting on added diff lines are returned.
 
 
 Review scope defaults: 20 Python files, 20,000 patch characters per file, and
@@ -436,7 +437,126 @@ Review scope defaults: 20 Python files, 20,000 patch characters per file, and
 `MAX_PATCH_CHARS_PER_FILE`, and `MAX_TOTAL_PATCH_CHARS` in `.env`, then recreate
 workers. Review responses include typed selected files, repository/base metadata,
 and `scope_summary` with every skipped filename and reason. Temporary GitHub
-failures receive bounded retries; no LLM calls are made yet.
+failures receive bounded retries.
 
 Development evidence: [Engineering log](docs/engineering-log.md) records observed
 failures, design decisions, measurements, and intentional PR fixtures.
+
+
+## Gemini reviewer
+
+Set `AI_ENABLED=true`, `AI_PROVIDER=gemini`, `AI_MODEL=gemini-3.8-flash`, and
+`GEMINI_API_KEY` in the ignored local `.env`. Recreate workers after changing them.
+The key is passed only to workers, never baked into images. Do not put secret
+values in `.gitignore`; it contains filename patterns, not credentials.
+
+The reviewer uses Gemini REST through the existing httpx dependency. Code and
+diffs are sent as untrusted user data, separate from fixed system instructions.
+Returned findings must validate against the common schema, reference the supplied
+file, and start on an added diff line. AI and static findings persist together.
+Component failures mark the review failed with a safe error code while preserving successful analysis results.
+
+Defaults: 20 files, 20,000 diff characters per file, 100,000 serialized input
+characters per review (including prompt/schema and retry budget), 4,096 output
+tokens per request, 30-second HTTP operation timeout, and one retry for transient
+errors. These are size controls, not a guaranteed dollar budget. Context is the
+full head file; oversized files are skipped whole, with reasons in `scope_summary.ai`.
+There is no silent context truncation. Findings are available through the existing
+findings endpoint. AI can produce false positives; publishing and report deduplication
+are future work.
+
+
+## Validated review reports
+
+`GET /api/reviews/{review_id}/report` returns the persisted combined report for
+newly completed jobs. It contains severity counts, validated findings, analysis
+status, original normalized tool findings, merge provenance, and rejection reasons.
+Missing reviews return 404; unfinished jobs and legacy jobs without a validated
+report return 409 rather than an invented empty report.
+
+Validation rejects unsupported severities, malformed fields, unknown paths, invalid
+line numbers, descriptions over 4,000 characters, and findings outside added diff
+lines. Locations are checked against the exact head source fetched by the worker.
+Unified diff parsing checks hunk lengths and tracks old/new positions. Truncated
+or overlapping hunks fail closed.
+
+Deduplication uses exact `(file_path, line_number, category)` matches. The highest
+severity is retained with deterministic tie-breaking; all original normalized
+findings and their indices remain in the report. Different categories on one line
+remain separate. Rule IDs are not guessed to be equivalent to broad AI categories.
+Use report findings for future publication, not the raw `/findings` audit endpoint.
+
+Reports are committed with findings and completion in the existing JSONB
+`scope_summary.report`; no database schema migration is needed. AI analysis is
+reported as disabled, limited, or completed. A failed component marks the job and report failed; successful results remain available. Location/schema validation cannot prove an AI
+claim is semantically correct.
+
+
+### Partial analysis failures
+
+Static and AI analysis run independently after source retrieval. If either fails,
+the job and persisted report have `status=failed` and the job has
+`error_code=analysis_incomplete`. The report records each component as completed,
+failed, disabled, or limited. Successful findings are retained, including findings
+from AI files reviewed before another file fails. Both-component failure produces
+a failed report with zero findings, not a clean review.
+
+`GET /api/reviews/{id}/report` serves these partial reports. Failures during GitHub
+retrieval still follow the existing retry/error path because there is no source
+to analyze. Duplicate task delivery skips terminal failed jobs; component-level
+resumption is not implemented. Raw exception/provider text is not exposed.
+
+Model output wrapped in Markdown fences is rejected as invalid JSON. Markdown,
+HTML, and instruction-like text inside valid finding fields remain inert JSON
+strings for audit; consumers must render them as plain text, not trusted HTML or
+commands. No publishing or HTML renderer exists yet. Schema validation does not
+claim to detect every malicious sentence or establish factual correctness.
+
+
+## GitHub Check Runs
+
+Enable `GITHUB_CHECKS_ENABLED=true` on workers (Compose default). Configure the
+App ID and mounted private-key PEM, install the App on the test repository, and
+grant **Checks: read/write**, **Contents: read**, **Pull requests: read**. Accept
+updated permissions on the installation after editing the App configuration.
+Authentication uses the existing App installation-token service, never a PAT.
+
+Workers create an in-progress **DevFlow AI Code Review** on the stored head SHA.
+After committing the report, a separate publication task updates that check.
+The API exposes `github_check_run_id` and `publication_status`. Publication errors
+do not erase analysis results or change analysis success into an analysis failure.
+
+Conclusion policy: clean complete reviews use success; advisory findings, disabled
+AI, or limited scope use neutral; failed analysis uses action_required. Findings
+use notice/warning annotations, never failure solely for an AI severity. Summary
+counts come from validated report findings, not model-written summary prose.
+
+The publisher revalidates changed-line locations and sends at most 50 annotations
+per request. It checks the current PR head before creation, each annotation batch,
+and completion. A moved head marks the job superseded and cancels the old check.
+Annotations already sent remain attached only to the old SHA. A head can still
+change immediately after the final read; GitHub provides no atomic compare-and-publish.
+
+A PostgreSQL row lock serializes local publishers. The persisted check ID is reused.
+If a create response was lost, external_id matching against the App's checks
+recovers the remote ID. Annotation fingerprints in raw_details reconcile accepted
+batches before retrying. This handles normal redelivery and observed remote state;
+GitHub has no create idempotency key, so this is not a distributed exactly-once
+guarantee during ambiguous failures or delayed remote visibility.
+
+Transient publication failures retry up to three times. To retry publication from
+the stored report without re-running analysis:
+
+```bash
+docker compose exec worker celery -A app.workers.celery_app:celery_app call app.workers.publication_tasks.publish_review --args='["REVIEW_UUID"]'
+```
+
+The commit-to-queue crash gap has no automatic outbox recovery yet. Use the retry
+command for enqueue_failed or interrupted publication; inspect publication_status.
+
+Live acceptance: open/update a test PR, inspect the stored review/report, verify
+the check's SHA and annotations, retry publication, and confirm the same check ID.
+This remains unverified locally while the App ID and private-key mount are absent.
+API permissions cannot be confirmed without those credentials.
+
+API reference: [GitHub Check Runs](https://docs.github.com/en/rest/checks/runs).

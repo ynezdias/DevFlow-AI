@@ -22,3 +22,7 @@ htmlcov/
 .secrets/
 *.pem
 *.key
+
+# Local credential variants
+.env.*
+!.env.example

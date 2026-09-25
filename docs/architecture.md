@@ -273,3 +273,25 @@ See the [engineering log](engineering-log.md) for the three intentional PRs,
 actual local measurements, and the distinction between fixture verification and
 end-to-end App-authenticated retrieval. Ruff, Bandit, and LLM findings remain
 future work and are not part of this diagram's implemented processing.
+
+
+## Day 6 static analysis
+
+The worker retrieves scoped Python files at the exact stored head SHA. Patches
+identify changed lines; complete source bytes are analyzed by Ruff and Bandit.
+Tools run in a temporary directory using generated filenames, without repository
+configuration, dependencies, scripts, or inherited application credentials. Each
+subprocess has a configurable timeout (default 30 seconds), and source files are
+limited to 1,000,000 bytes each. Temporary files are removed even on failure.
+
+Both tools produce `CodeFinding` objects. Only findings whose starting line is an
+added line in the new side of a diff are persisted. This conservative policy can
+omit a multiline finding that starts in unchanged context. Incomplete diffs fail
+explicitly. Syntax errors become Ruff findings; unexpected tool failures and
+timeouts fail the job rather than appearing as a clean analysis.
+
+Findings reference `review_jobs.id` through a foreign key. Replacing findings and
+marking a review completed occur in the same PostgreSQL transaction. Completed
+jobs are skipped on duplicate task delivery. Findings are available through
+`GET /api/reviews/{review_id}/findings`. Full source is temporary; patches and
+normalized findings are persisted. No AI review or GitHub publishing occurs.
