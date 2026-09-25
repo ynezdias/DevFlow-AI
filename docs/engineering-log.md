@@ -172,3 +172,103 @@ Read-only checks from the running worker reported `app_id_configured=False` and
 running. Needed next: App ID, local private-key PEM path, installation on the test
 repository, and an active reachable webhook URL with the matching secret.
 No Ruff/Bandit dependencies or analyzer code were added before this gate passes.
+
+
+## Day 6 local implementation - 2026-09-24
+
+Following the subsequent request for findings persistence and worker integration,
+implemented static analysis locally. This supersedes the earlier implementation
+pause; it does not resolve the missing live GitHub App credentials.
+
+- Implemented: common finding schema, Ruff/Bandit service, head-SHA full-source
+  retrieval in the worker, changed-line filtering, findings model and read API.
+- Migration: generated, inspected, and applied `52dd2fc1dc1b`; adds the findings
+  table, review-job foreign key, index, and line/source/severity constraints.
+- Design decision: generated temporary filenames prevent repository paths from
+  escaping the analysis directory. Tools receive a minimal environment.
+- Trade-off: findings must start on an added diff line; multiline issues starting
+  in unchanged context are omitted. Source-size violations fail explicitly.
+- Verification: Ruff 0.16.8 and Bandit 1.9.4 run inside the backend container.
+  The PostgreSQL-backed suite passed 91 tests in 11.91 seconds. Real-tool fixtures
+  cover clean files, unused imports, command execution, syntax errors, file/line
+  mapping, and changed-line filtering. Failure tests cover timeouts, missing tools,
+  invalid output, and temporary-directory cleanup. Worker tests use mocked GitHub
+  responses, real analyzers, and PostgreSQL to verify persistence and redelivery.
+- Observed warning: upstream Starlette deprecates its httpx test-client integration.
+- Remaining limitation: live signed GitHub PR -> App authentication -> Celery
+  retrieval remains unverified until App credentials and the tunnel are configured.
+
+
+## Day 7 - Gemini reviewer
+
+- Added single-provider Gemini service, configurable model, strict JSON validation,
+  changed-line validation, fixed instructions with untrusted source data separated,
+  bounded inputs/output/retries, and per-file skip reporting.
+- Worker runs AI after static analysis and stores both sets of findings atomically.
+- Credentials stored only in ignored local `.env`; example contains no key.
+- Verification: 111 tests passed, including mocked provider failures, timeout,
+  invalid findings, cost limits, bounded retries, and worker AI persistence.
+- Live failure: Gemini 2.5 Flash returned 404 (unavailable to new users). Updated
+  configurable default to Gemini 3.8 Flash based on provider guidance. The documented
+  responseFormat MIME string returned 400; using responseMimeType/responseJsonSchema
+  instead reached a 503 response and exhausted the bounded retry. Live inference
+  remains unverified; no success or model-quality claim is made.
+- No real PR source was sent during smoke checks; only synthetic examples.
+
+
+## Day 8 - Finding validation and combined reports
+
+- Added shared Pydantic validation followed by exact-file and changed-line checks.
+  Strict field types, supported severities, and explicit text length limits fail closed.
+- Extracted unified diff parser with old/new counters, hunk-count validation, and
+  overlapping-hunk rejection. Context lines are tracked but not annotation targets.
+- Added deterministic file/line/category deduplication, severity counts, original
+  normalized findings, merge indices, and rejected-finding reasons. No semantic
+  equivalence is inferred between unrelated tool categories.
+- Persisted reports atomically with findings/completion in existing scope JSONB;
+  added GET /api/reviews/{id}/report. No schema migration required. Legacy jobs
+  without a validated snapshot return 409. Raw findings remain available for audit.
+- Verification: 132 tests passed in Docker in 15.19 seconds. Tests cover malformed
+  JSON/fields, text limits, unsupported severity, invented locations, diff offsets,
+  deletions, multiple hunks, deduplication, counts, provenance, and PostgreSQL report
+  retrieval with AI enabled/disabled. One existing Starlette deprecation warning.
+- Limitations: validates structure/location, not factual correctness. Live Gemini
+  and real GitHub PR end-to-end verification remain separate unresolved checks.
+
+
+## Day 8 - Partial-failure handling
+
+- Static and AI component failures are isolated. Successful findings survive,
+  including AI findings from files completed before a later file fails.
+- Any component failure sets overall job/report status failed and job error code
+  analysis_incomplete. Component statuses and safe error codes are persisted with
+  findings atomically; failed reports remain readable through the report endpoint.
+- Verification: 138 tests passed in Docker in 17.96 seconds. Coverage includes all
+  requested validation categories, each component failing, both failing, redelivery,
+  partial AI files, Markdown-fenced invalid JSON, and hostile text as inert JSON data.
+  API/database health is healthy. Existing Starlette deprecation warning remains.
+- Trade-off: terminal failed jobs are not automatically replayed; component-level
+  resumption is future work. Presentation must treat finding text as untrusted plain
+  text. Live-provider quality and full GitHub workflow are not established by mocks.
+
+
+## Day 9 - GitHub Check Runs
+
+- Added installation-authenticated publisher, in-progress checks, stored check IDs,
+  publication status, annotation batches of 50, and independent publication tasks.
+- Generated, inspected and applied migration f59716984cae. Alembic check reports
+  no schema drift. All three workers register the publication task.
+- Conclusion policy: advisory findings -> neutral; incomplete analysis ->
+  action_required; clean complete analysis -> success. AI severity is not a gate.
+- Current PR SHA is checked before creation, each batch and final completion.
+  Old jobs become superseded and their checks are cancelled.
+- Retry design: row locks, external_id recovery after lost create responses, and
+  remote annotation fingerprint reconciliation. No distributed exactly-once claim;
+  GitHub state visibility and the commit/enqueue gap remain limitations.
+- Verification: 149 tests passed in Docker (16.05s), then the additional PostgreSQL
+  publication retry/ID persistence test passed (2.64s). Tests cover 101 findings
+  batched 50/50/1, lost responses, stale heads, invalid locations, advisory policy,
+  and same-ID reuse. Existing Starlette warning remains.
+- Live acceptance blocked: worker reports app_id_configured=False and
+  private_key_exists=False. Installation permission acceptance and actual PR checks
+  cannot be verified yet. Requested App ID, PEM path and permission confirmation.
