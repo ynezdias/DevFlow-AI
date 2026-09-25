@@ -146,3 +146,27 @@ class GitHubService:
 
     def create_check_run(self, repository, *, name, head_sha, **fields):
         return self._api("POST", f"{self._repo(repository)}/check-runs", json={**fields, "name": name, "head_sha": head_sha})
+
+
+    def update_check_run(self, repository, check_id, **fields):
+        return self._api("PATCH", f"{self._repo(repository)}/check-runs/{check_id}", json=fields)
+
+    def list_check_runs(self, repository, sha):
+        results = []
+        for page in range(1, 101):
+            batch = self._api("GET", f"{self._repo(repository)}/commits/{sha}/check-runs",
+                params={"per_page": 100, "page": page, "filter": "all", "app_id": self.app_id})["check_runs"]
+            results.extend(batch)
+            if len(batch) < 100:
+                return results
+        raise GitHubError("github_check_pagination_limit")
+
+    def list_check_annotations(self, repository, check_id):
+        results = []
+        for page in range(1, 101):
+            batch = self._api("GET", f"{self._repo(repository)}/check-runs/{check_id}/annotations",
+                params={"per_page": 100, "page": page})
+            results.extend(batch)
+            if len(batch) < 100:
+                return results
+        raise GitHubError("github_annotation_pagination_limit")
