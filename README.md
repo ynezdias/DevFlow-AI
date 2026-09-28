@@ -551,7 +551,7 @@ the stored report without re-running analysis:
 docker compose exec worker celery -A app.workers.celery_app:celery_app call app.workers.publication_tasks.publish_review --args='["REVIEW_UUID"]'
 ```
 
-The commit-to-queue crash gap has no automatic outbox recovery yet. Use the retry
+A periodic PostgreSQL recovery sweep repairs the commit-to-queue gap. Use the retry
 command for enqueue_failed or interrupted publication; inspect publication_status.
 
 Live acceptance: open/update a test PR, inspect the stored review/report, verify
@@ -583,3 +583,42 @@ Redis/Celery/PostgreSQL workflow is exercised with real static tools and explici
 GitHub/AI fakes. Live Day 10 acceptance still needs GitHub App credentials, accepted
 permissions, a webhook tunnel, and a successful LLM call. Local test success is not
 a claim that a real PR has received a published automated review.
+
+
+## Day 11 reliability
+
+Run `docker compose up -d --build --scale worker=3` with the new single scheduler
+service. It sends a recovery task every 30 seconds. PostgreSQL stores pending
+review/publication intent, so Redis loss or a crash between commit and enqueue
+does not silently discard work. Only jobs with installation IDs are auto-dispatched.
+
+Reviews have at most four processing attempts. GitHub network errors, rate limits
+and retryable HTTP failures use 30/60/120-second backoff (or a longer GitHub
+Retry-After). Gemini transport errors and 408/429/5xx use bounded local requests
+plus bounded job retries. Credentials, malformed payloads and invalid model output
+are permanent errors. Partial findings persist before an AI retry; exhausted jobs
+retain their partial report and fail visibly. Whole-job retries can repeat analysis
+and incur additional LLM cost; component-level resume is not implemented.
+
+Each attempt claims a row with a random token and expiry. Final writes require
+that token; stale workers cannot overwrite a newer attempt. A task has a 1,800s
+hard limit by default and its claim expires 30s later. Recovery therefore may take
+up to about 31 minutes plus queue backlog after a sudden worker loss. The crash
+fixture uses a 10s task limit and 40s claim instead. Redelivery during an active
+claim skips the duplicate; the database sweep remains responsible after expiry.
+
+Publication has its own persisted four-attempt budget and next-attempt deadline.
+Completed publication is a no-op on replay. Existing external-ID/check-ID and
+annotation-fingerprint reconciliation remains in place; no distributed exactly-once
+guarantee is claimed. Permanent publication errors require operator correction.
+
+`last_error`, `attempt_count`, `started_at`, `completed_at` and `next_attempt_at`
+are visible in review details. Application log messages contain JSON fields for
+review/repository/PR/SHA/worker/stage/duration and allowlisted error codes. Source
+text, provider bodies, tokens and exception text are excluded from those records.
+Celery infrastructure messages retain their normal log format.
+
+Regression: `docker compose exec api pytest -q`. Recovery can also be invoked with
+`docker compose exec worker celery -A app.workers.celery_app:celery_app call app.workers.recovery_tasks.recover_reviews`.
+The scheduler is required; do not run multiple Beat instances. Existing signed
+webhook and repo/PR/SHA constraints still provide the first two idempotency layers.

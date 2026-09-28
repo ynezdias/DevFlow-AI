@@ -25,6 +25,8 @@ class ReviewJobResponse(BaseModel):
     scope_summary: ScopeSummary | None = None
     changed_files: list[ChangedFile] | None = None
     error_code: str | None = None
+    last_error: str | None = None
+    next_attempt_at: datetime | None = None
     github_check_run_id: int | None = None
     publication_status: str | None = None
     created_at: datetime
