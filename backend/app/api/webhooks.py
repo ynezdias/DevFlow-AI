@@ -95,7 +95,7 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
     try:
         process_review.apply_async(args=[str(review_id)], retry=False)
     except (OperationalError, OSError):
-        logger.exception("Review publish failed delivery=%s review_id=%s", delivery_id, review_id)
+        logger.error("Review publish failed review_id=%s error=queue_unavailable", review_id)
         raise HTTPException(503, "Review persisted; queue unavailable. Redeliver this webhook to retry.")
 
     with db.begin():

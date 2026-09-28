@@ -7,6 +7,7 @@ class Settings(BaseSettings):
         "postgresql+psycopg://devflow:devflow@postgres:5432/devflow"
     )
 
+    review_task_limit_seconds: int = Field(default=1800, ge=10, le=3600)
     redis_url: str = "redis://redis:6379/0"
     analyzer_timeout_seconds: int = Field(default=30, ge=1)
     max_source_bytes_per_file: int = Field(default=1_000_000, ge=1)
