@@ -328,12 +328,15 @@ def test_temporary_worker_failure(database, monkeypatch, scenario):
     monkeypatch.setattr(tasks.process_review, "retry", retry)
     try:
         expected = tasks.TemporaryGitHubError if scenario == "exhausted" else (RuntimeError if scenario == "publish_failed" else Retry)
-        with pytest.raises(expected):
-            tasks.process_review.run(review_id)
+        if scenario == "publish_failed":
+            assert tasks.process_review.run(review_id)["status"] == "queued"
+        else:
+            with pytest.raises(expected):
+                tasks.process_review.run(review_id)
     finally:
         tasks.process_review.pop_request()
     job = database.get(ReviewJob, UUID(review_id))
-    assert job.status == ("queued" if scenario == "retry" else "failed")
+    assert job.status == ("queued" if scenario in {"retry", "publish_failed"} else "failed")
     assert job.attempt_count == 1
     if scenario == "retry":
         assert retry.call_args.kwargs["countdown"] == 120
@@ -425,7 +428,7 @@ def test_publication_task_persists_id_and_reuses_check(database, monkeypatch):
     assert review.github_check_run_id == 12345
     assert review.publication_status == "published"
     github.create_check_run.assert_called_once()
-    assert github.update_check_run.call_count == 2
+    assert github.update_check_run.call_count == 1
 
 
 def test_dashboard_history_metrics_and_cors(database):
@@ -448,3 +451,150 @@ def test_dashboard_history_metrics_and_cors(database):
     bad = client.get("/api/reviews", headers={"Origin":"https://untrusted.example"})
     assert "access-control-allow-origin" not in bad.headers
     assert "Server-Timing" in good.headers
+
+
+@pytest.fixture
+def reliability_job(database, monkeypatch):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from app.schemas.changed_file import PullRequestSnapshot
+    import app.workers.review_tasks as tasks
+    monkeypatch.setattr(tasks.settings, "github_checks_enabled", False)
+    monkeypatch.setattr(tasks.settings, "ai_enabled", False)
+    review_id=send_event(pr_payload()).json()["review_id"]
+    @contextmanager
+    def transaction():
+        with database.begin():
+            yield database
+    monkeypatch.setattr(tasks,"SessionLocal",SimpleNamespace(begin=transaction))
+    github=Mock()
+    github.__enter__=Mock(return_value=github)
+    github.__exit__=Mock(return_value=False)
+    github.get_review_snapshot.return_value=PullRequestSnapshot(github_repository_id=123,base_sha="c"*40,head_sha="a"*40,
+        files=[dict(filename="app.py",status="added",additions=1,deletions=0,changes=1,patch="@@ -0,0 +1 @@\n+import os")])
+    github.get_file_content.return_value=b"import os\n"
+    monkeypatch.setattr(tasks,"GitHubService",Mock(return_value=github))
+    return review_id,tasks,github
+
+
+@pytest.mark.parametrize("expired",[False,True])
+def test_processing_claim_recovery(database,reliability_job,expired):
+    from uuid import UUID
+    from datetime import datetime,timezone,timedelta
+    review_id,tasks,github=reliability_job
+    job=database.get(ReviewJob,UUID(review_id))
+    job.status="processing"
+    job.attempt_count=1
+    job.lease_token=uuid4()
+    job.lease_expires_at=datetime.now(timezone.utc)+timedelta(seconds=-1 if expired else 60)
+    database.commit()
+    result=tasks.process_review.run(review_id)
+    assert result["status"]==("completed" if expired else "skipped")
+    job=database.get(ReviewJob,UUID(review_id))
+    assert job.attempt_count==(2 if expired else 1)
+
+
+def test_old_attempt_cannot_write(database,reliability_job):
+    from uuid import UUID
+    review_id,tasks,github=reliability_job
+    snapshot=github.get_review_snapshot.return_value
+    def steal(*args):
+        job=database.get(ReviewJob,UUID(review_id))
+        job.lease_token=uuid4()
+        database.commit()
+        return snapshot
+    github.get_review_snapshot.side_effect=steal
+    assert tasks.process_review.run(review_id)["status"]=="lease_lost"
+    assert database.get(ReviewJob,UUID(review_id)).scope_summary is None
+
+
+@pytest.mark.parametrize("attempts,permanent",[(0,False),(3,False),(0,True)])
+def test_ai_retry_preserves_static_results(database,monkeypatch,reliability_job,attempts,permanent):
+    from uuid import UUID
+    from celery.exceptions import Retry
+    from app.models import Finding
+    review_id,tasks,github=reliability_job
+    job=database.get(ReviewJob,UUID(review_id))
+    job.attempt_count=attempts
+    database.commit()
+    monkeypatch.setattr(tasks.settings,"ai_enabled",True)
+    ai=Mock()
+    ai.analyze_files.side_effect=tasks.AIReviewError("ai_http_401") if permanent else tasks.TemporaryAIError("ai_transport_error")
+    monkeypatch.setattr(tasks,"AIReviewer",Mock(return_value=ai))
+    retry=Mock(side_effect=Retry())
+    monkeypatch.setattr(tasks.process_review,"retry",retry)
+    if attempts==0 and not permanent:
+        with pytest.raises(Retry): tasks.process_review.run(review_id)
+        assert retry.call_args.kwargs["countdown"]==30
+    else:
+        assert tasks.process_review.run(review_id)["status"]=="failed"
+        retry.assert_not_called()
+    job=database.get(ReviewJob,UUID(review_id))
+    assert job.attempt_count==attempts+1
+    assert job.last_error
+    assert database.scalar(select(func.count()).select_from(Finding).where(Finding.review_job_id==job.id))==1
+
+
+def test_deadline_prevents_early_duplicate(database,reliability_job):
+    from uuid import UUID
+    from datetime import datetime,timezone,timedelta
+    review_id,tasks,github=reliability_job
+    job=database.get(ReviewJob,UUID(review_id))
+    job.next_attempt_at=datetime.now(timezone.utc)+timedelta(seconds=60)
+    database.commit()
+    assert tasks.process_review.run(review_id)["status"]=="deferred"
+    github.get_review_snapshot.assert_not_called()
+
+
+def test_replay_many_webhooks_one_job(database):
+    delivery=str(uuid4())
+    responses=[send_event(pr_payload(),delivery=delivery) for _ in range(10)]
+    assert responses[0].status_code==202
+    assert all(r.json()["status"]=="duplicate" for r in responses[1:])
+    assert database.scalar(select(func.count()).select_from(ReviewJob).where(ReviewJob.repository_name=="ynezdias/devflow-test", ReviewJob.pull_request_number==7, ReviewJob.head_sha=="a"*40))==1
+
+
+def test_structured_logs_do_not_emit_exception_secrets(caplog):
+    from types import SimpleNamespace
+    import logging,json
+    from app.services.job_logging import log_stage
+    with caplog.at_level(logging.INFO,logger="devflow.jobs"):
+        log_stage(SimpleNamespace(id="id",repository_name="org/repo",pull_request_number=1,head_sha="sha"),
+            "failed",1.5,RuntimeError("API_KEY=do-not-log-source-content"))
+    record=json.loads(caplog.records[-1].message)
+    assert set(record)=={"review_id","repository","pull_request","head_sha","worker","stage","duration","error"}
+    assert record["error"]=="processing_error"
+    assert "do-not-log" not in caplog.text
+
+
+@pytest.mark.parametrize("due",[True,False])
+def test_recovery_sweep_respects_deadline(database,monkeypatch,reliability_job,due):
+    from uuid import UUID
+    from datetime import datetime,timezone,timedelta
+    from contextlib import nullcontext
+    import app.workers.recovery_tasks as recovery
+    review_id,tasks,github=reliability_job
+    job=database.get(ReviewJob,UUID(review_id))
+    job.next_attempt_at=datetime.now(timezone.utc)+timedelta(seconds=-1 if due else 60)
+    database.commit()
+    monkeypatch.setattr(recovery,"SessionLocal",lambda:nullcontext(database))
+    publish=Mock()
+    monkeypatch.setattr(tasks.process_review,"apply_async",publish)
+    result=recovery.recover_reviews.run(review_id=review_id)
+    assert result["dispatched"]==int(due)
+    assert publish.call_count==int(due)
+
+
+def test_permanent_github_error_not_retried(database,monkeypatch,reliability_job):
+    from uuid import UUID
+    review_id,tasks,github=reliability_job
+    github.get_review_snapshot.side_effect=tasks.GitHubError("github_http_401")
+    retry=Mock()
+    monkeypatch.setattr(tasks.process_review,"retry",retry)
+    with pytest.raises(tasks.GitHubError,match="github_http_401"):
+        tasks.process_review.run(review_id)
+    retry.assert_not_called()
+    job=database.get(ReviewJob,UUID(review_id))
+    assert job.status=="failed"
+    assert job.last_error=="github_http_401"
+    assert job.completed_at is not None
