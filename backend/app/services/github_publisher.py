@@ -24,6 +24,10 @@ class GitHubPublisher:
 
     def supersede(self, review):
         review.status = "superseded"
+        review.completed_at = datetime.now(timezone.utc)
+        review.error_code = "pull_request_changed"
+        review.lease_token = None
+        review.lease_expires_at = None
         review.publication_status = "superseded"
         if review.github_check_run_id:
             self.github.update_check_run(review.repository_name, review.github_check_run_id,

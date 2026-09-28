@@ -52,6 +52,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://devflow:devflow@postgres:5432/devflow
       REDIS_URL: redis://redis:6379/0
+      REVIEW_TASK_LIMIT_SECONDS: ${REVIEW_TASK_LIMIT_SECONDS:-1800}
       AI_ENABLED: ${AI_ENABLED:-false}
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       AI_MODEL: ${AI_MODEL:-gemini-3.8-flash}

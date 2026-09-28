@@ -26,6 +26,10 @@ class AIReviewError(RuntimeError):
     pass
 
 
+class TemporaryAIError(AIReviewError):
+    pass
+
+
 class AIFinding(ValidatedFinding):
     model_config = ConfigDict(extra="forbid", strict=True)
     suggestion: str = Field(min_length=1, max_length=4000)
@@ -79,12 +83,14 @@ class AIReviewer:
                         headers={"x-goog-api-key": cfg.gemini_api_key.get_secret_value()}, json=payload)
                 except httpx.TransportError:
                     if attempt == cfg.ai_max_retries:
-                        raise AIReviewError("ai_transport_error") from None
+                        raise TemporaryAIError("ai_transport_error") from None
                     time.sleep(2 ** attempt)
                     continue
                 if response.status_code in (429, 500, 502, 503, 504) and attempt < cfg.ai_max_retries:
                     time.sleep(2 ** attempt)
                     continue
+                if response.status_code in (408, 429, 500, 502, 503, 504):
+                    raise TemporaryAIError(f"ai_http_{response.status_code}")
                 if response.status_code != 200:
                     raise AIReviewError(f"ai_http_{response.status_code}")
                 break
@@ -126,7 +132,10 @@ class AIReviewer:
                 reviewed.append(file.filename)
             except AIReviewError as exc:
                 if str(exc) not in {"ai_diff_limit", "ai_file_limit", "ai_total_input_limit"}:
-                    failed.append({"filename": file.filename, "reason": "ai_review_failed"})
+                    failure = {"filename": file.filename, "reason": "ai_review_failed"}
+                    if isinstance(exc, TemporaryAIError):
+                        failure["retryable"] = True
+                    failed.append(failure)
                     continue
                 skipped.append({"filename": file.filename, "reason": str(exc)})
         return findings, {"enabled": True, "model": self.config.ai_model,
