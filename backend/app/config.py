@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     ai_max_output_tokens: int = Field(default=4096, ge=1, le=8192)
     ai_timeout_seconds: int = Field(default=30, ge=1, le=120)
     ai_max_retries: int = Field(default=1, ge=0, le=2)
+    frontend_origin: str = "http://localhost:5173"
     environment: str = "development"
     github_checks_enabled: bool = False
     github_app_id: str = ""

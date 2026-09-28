@@ -1,0 +1,66 @@
+﻿{
+  "recorded_at": "2026-09-28T20:45:58.410385+00:00",
+  "kind": "isolated local integration: real Redis, Celery, PostgreSQL, Ruff, Bandit; MOCK GitHub and AI",
+  "samples": [
+    {
+      "run": 1,
+      "webhook_ack_seconds": 0.400692921999962,
+      "workflow_through_check_seconds": 1.9800650610000048,
+      "report": {
+        "ai_findings": 1,
+        "static_findings": 2,
+        "queue_wait_seconds": 0.118433,
+        "ai_analysis_seconds": 0.00012995800000226154,
+        "job_to_report_seconds": 1.347364,
+        "static_analysis_seconds": 1.2052762790000315
+      },
+      "findings": {
+        "low": 1,
+        "high": 2,
+        "medium": 0,
+        "total_findings": 3
+      },
+      "duplicate_check_created": false
+    },
+    {
+      "run": 2,
+      "webhook_ack_seconds": 0.06414387300003455,
+      "workflow_through_check_seconds": 1.2824901540000155,
+      "report": {
+        "ai_findings": 1,
+        "static_findings": 2,
+        "queue_wait_seconds": 0.034336,
+        "ai_analysis_seconds": 8.467500003916939e-05,
+        "job_to_report_seconds": 1.145999,
+        "static_analysis_seconds": 1.0593520679999529
+      },
+      "findings": {
+        "low": 1,
+        "high": 2,
+        "medium": 0,
+        "total_findings": 3
+      },
+      "duplicate_check_created": false
+    },
+    {
+      "run": 3,
+      "webhook_ack_seconds": 0.03449747699994532,
+      "workflow_through_check_seconds": 0.8382757219999348,
+      "report": {
+        "ai_findings": 1,
+        "static_findings": 2,
+        "queue_wait_seconds": 0.018702,
+        "ai_analysis_seconds": 3.732800007583137e-05,
+        "job_to_report_seconds": 0.707576,
+        "static_analysis_seconds": 0.6683370360000254
+      },
+      "findings": {
+        "low": 1,
+        "high": 2,
+        "medium": 0,
+        "total_findings": 3
+      },
+      "duplicate_check_created": false
+    }
+  ]
+}

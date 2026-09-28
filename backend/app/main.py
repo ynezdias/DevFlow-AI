@@ -1,3 +1,4 @@
+from time import perf_counter
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -21,6 +22,14 @@ app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_origin],
 app.include_router(metrics_router)
 app.include_router(reviews_router)
 app.include_router(webhooks_router)
+
+
+@app.middleware("http")
+async def request_timing(request, call_next):
+    start = perf_counter()
+    response = await call_next(request)
+    response.headers["Server-Timing"] = f"app;dur={(perf_counter() - start)*1000:.3f}"
+    return response
 
 
 @app.get("/")

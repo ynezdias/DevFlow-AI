@@ -560,3 +560,26 @@ This remains unverified locally while the App ID and private-key mount are absen
 API permissions cannot be confirmed without those credentials.
 
 API reference: [GitHub Check Runs](https://docs.github.com/en/rest/checks/runs).
+
+
+## Local review dashboard
+
+Run `docker compose up -d --build --scale worker=3` and open
+http://localhost:5173. The React/TypeScript dashboard shows paginated review history,
+status counts, component/publication status, validated findings and suggested fixes.
+It polls every five seconds, displays empty/error states, and renders finding text
+as plain text. All counts come from PostgreSQL; there are no demo counts.
+
+New read endpoints: `GET /api/reviews?page=1&page_size=20` (maximum 100),
+`GET /api/metrics/summary`. Existing detail/findings/report endpoints remain available.
+API CORS permits only http://localhost:5173. Vite proxies /api requests locally.
+Dashboard/API bind to loopback; PostgreSQL/Redis have no host ports. For SQL access,
+use `docker compose exec postgres psql -U devflow -d devflow`. Never expose the
+dashboard or API read routes through a public tunnel: there is no authentication
+or repository authorization yet. Route only the signed webhook endpoint publicly.
+
+Validation and honest performance data: [benchmarks](docs/benchmarks.md). The local
+Redis/Celery/PostgreSQL workflow is exercised with real static tools and explicit
+GitHub/AI fakes. Live Day 10 acceptance still needs GitHub App credentials, accepted
+permissions, a webhook tunnel, and a successful LLM call. Local test success is not
+a claim that a real PR has received a published automated review.

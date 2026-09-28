@@ -26,3 +26,9 @@ htmlcov/
 # Local credential variants
 .env.*
 !.env.example
+
+# Frontend generated output
+node_modules/
+dist/
+playwright-report/
+test-results/

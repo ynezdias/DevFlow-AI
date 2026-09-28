@@ -1,0 +1,67 @@
+﻿{
+  "recorded_at": "2026-09-28T20:44:23.275737+00:00",
+  "kind": "local component baseline; no live PR, Redis, GitHub publication, or LLM",
+  "fixture_sha256": "43325ebaf5e4a9e3a71d99063074ec77d741b0ac4d40178ad5591100a2a31fa0",
+  "samples": [
+    {
+      "run": 1,
+      "webhook_kind": "signed ping (not PR enqueue)",
+      "webhook_http_status": 200,
+      "webhook_roundtrip_seconds": 2.8528850320000174,
+      "server_timing": "app;dur=1495.028",
+      "static_analysis_seconds": 0.7553075520000334,
+      "static_findings": 2,
+      "static_by_source": {
+        "ruff": 1,
+        "bandit": 1
+      },
+      "queue_wait_seconds": null,
+      "ai_analysis_seconds": null,
+      "ai_findings": null,
+      "llm_input_tokens": null,
+      "llm_output_tokens": null,
+      "estimated_cost_usd": null,
+      "end_to_end_seconds": null
+    },
+    {
+      "run": 2,
+      "webhook_kind": "signed ping (not PR enqueue)",
+      "webhook_http_status": 200,
+      "webhook_roundtrip_seconds": 0.018933544999981677,
+      "server_timing": "app;dur=15.044",
+      "static_analysis_seconds": 0.5592623800000069,
+      "static_findings": 2,
+      "static_by_source": {
+        "ruff": 1,
+        "bandit": 1
+      },
+      "queue_wait_seconds": null,
+      "ai_analysis_seconds": null,
+      "ai_findings": null,
+      "llm_input_tokens": null,
+      "llm_output_tokens": null,
+      "estimated_cost_usd": null,
+      "end_to_end_seconds": null
+    },
+    {
+      "run": 3,
+      "webhook_kind": "signed ping (not PR enqueue)",
+      "webhook_http_status": 200,
+      "webhook_roundtrip_seconds": 0.017152194000004783,
+      "server_timing": "app;dur=14.155",
+      "static_analysis_seconds": 0.4768188909999935,
+      "static_findings": 2,
+      "static_by_source": {
+        "ruff": 1,
+        "bandit": 1
+      },
+      "queue_wait_seconds": null,
+      "ai_analysis_seconds": null,
+      "ai_findings": null,
+      "llm_input_tokens": null,
+      "llm_output_tokens": null,
+      "estimated_cost_usd": null,
+      "end_to_end_seconds": null
+    }
+  ]
+}

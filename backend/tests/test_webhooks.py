@@ -426,3 +426,25 @@ def test_publication_task_persists_id_and_reuses_check(database, monkeypatch):
     assert review.publication_status == "published"
     github.create_check_run.assert_called_once()
     assert github.update_check_run.call_count == 2
+
+
+def test_dashboard_history_metrics_and_cors(database):
+    first = send_event(pr_payload()).json()["review_id"]
+    payload = pr_payload()
+    payload["pull_request"]["head"]["sha"] = "d" * 40
+    second = send_event(payload).json()["review_id"]
+    page1 = client.get("/api/reviews?page=1&page_size=1").json()
+    page2 = client.get("/api/reviews?page=2&page_size=1").json()
+    assert page1["items"][0]["id"] == second
+    assert page2["items"][0]["id"] == first
+    assert "changed_files" not in page1["items"][0]
+    assert client.get("/api/reviews?page=0").status_code == 422
+    assert client.get("/api/reviews?page_size=101").status_code == 422
+    metrics = client.get("/api/metrics/summary").json()
+    assert metrics["total_reviews"] == sum(metrics[k] for k in ["completed","queued","processing","failed","superseded"])
+    assert metrics["queued"] >= 2
+    good = client.get("/api/reviews", headers={"Origin":"http://localhost:5173"})
+    assert good.headers["access-control-allow-origin"] == "http://localhost:5173"
+    bad = client.get("/api/reviews", headers={"Origin":"https://untrusted.example"})
+    assert "access-control-allow-origin" not in bad.headers
+    assert "Server-Timing" in good.headers

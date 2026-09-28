@@ -1,4 +1,13 @@
 services:
+  frontend:
+    build: ./frontend
+    environment:
+      API_PROXY_TARGET: http://api:8000
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - api
+
 
   api:
     build:
@@ -10,10 +19,11 @@ services:
       DATABASE_URL: postgresql+psycopg://devflow:devflow@postgres:5432/devflow
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: development
+      FRONTEND_ORIGIN: http://localhost:5173
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
 
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
     depends_on:
       postgres:
@@ -65,8 +75,6 @@ services:
       POSTGRES_PASSWORD: devflow
       POSTGRES_DB: devflow
 
-    ports:
-      - "5432:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -82,8 +90,6 @@ services:
     image: redis:7-alpine
     container_name: devflow-redis
 
-    ports:
-      - "6379:6379"
 
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

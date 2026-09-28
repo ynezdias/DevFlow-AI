@@ -272,3 +272,28 @@ pause; it does not resolve the missing live GitHub App credentials.
 - Live acceptance blocked: worker reports app_id_configured=False and
   private_key_exists=False. Installation permission acceptance and actual PR checks
   cannot be verified yet. Requested App ID, PEM path and permission confirmation.
+
+
+## Day 10 - Local React dashboard and integration baseline
+
+- Added React/TypeScript history, paginated cards, detail findings, component status,
+  polling, empty/error states, and plain-text rendering of untrusted suggestions.
+- Added bounded paginated GET /api/reviews and GET /api/metrics/summary. CORS permits
+  only the local frontend. Dashboard/API bind to loopback; databases are internal.
+- Added Server-Timing, report component timings, separate finding counts and Gemini
+  usageMetadata capture. Benchmarks distinguish actual samples from provider fakes.
+- Failures observed: Docker was stopped, host Node unavailable, Windows refused the
+  PostgreSQL port, and Vite rejected the Docker browser-test host. Started Docker,
+  used Node containers, removed database host port mappings, and allowed the single
+  test hostname. No wildcard CORS or public dashboard binding was added.
+- Backend regression: 151 tests passed (32.95s). React TypeScript/production build
+  and lint passed. Three isolated full local workflow runs passed with real Redis,
+  Celery, PostgreSQL, Ruff and Bandit, with explicit GitHub/AI fakes. Publication
+  replay created no duplicate checks; temporary fixture rows were cleaned up.
+- Live gate remains: no configured App ID/private-key file. No live PR publication,
+  LLM timing, token usage or monetary baseline is claimed. See benchmarks.md for
+  exact samples, commands, scope and the remaining live acceptance procedure.
+
+- Final Chromium browser run: 3 tests passed (49.7s), covering live dashboard/API
+  connectivity, mocked partial-review navigation/polling, inert hostile finding
+  text, and visible API errors. Final API/database health check passed.

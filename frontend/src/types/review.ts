@@ -1,0 +1,5 @@
+export interface Finding { file_path: string; line_number: number; source: string; severity: string; category: string; title: string; description: string; suggestion: string | null; sources?: string[] }
+export interface Report { status: string; summary: {total_findings: number; high: number; medium: number; low: number}; findings: Finding[]; analysis: {static_analysis: string; ai_analysis: string}; measurements?: Record<string, number | null> }
+export interface Review { id: string; repository_name: string; pull_request_number: number; head_sha: string; status: string; created_at: string; started_at: string | null; completed_at: string | null; error_code: string | null; publication_status: string | null; github_check_run_id: number | null; finding_count?: number | null; scope_summary?: {report?: Report; limited: boolean} | null }
+export interface ReviewPage {items: Review[]; total: number; page: number; page_size: number}
+export interface Metrics {total_reviews: number; completed: number; processing: number; queued: number; failed: number; superseded: number}
