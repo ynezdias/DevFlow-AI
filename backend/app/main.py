@@ -1,4 +1,7 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.config import settings
+from app.api.metrics import router as metrics_router
 from sqlalchemy import text
 
 from app.api.reviews import router as reviews_router
@@ -13,6 +16,9 @@ app = FastAPI(
 )
 
 
+app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_origin],
+                   allow_methods=["GET"], allow_headers=["Content-Type"])
+app.include_router(metrics_router)
 app.include_router(reviews_router)
 app.include_router(webhooks_router)
 

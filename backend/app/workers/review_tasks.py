@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from uuid import UUID
+from time import perf_counter
 
 from celery.utils.log import get_task_logger
 from sqlalchemy import select, delete
@@ -51,6 +52,7 @@ def process_review(self, review_id: str):
             return {"status": "failed", "review_id": review_id}
         review.status = "processing"
         review.started_at = datetime.now(timezone.utc)
+        queue_wait_seconds = (review.started_at - review.created_at).total_seconds()
         review.attempt_count += 1
         review.error_code = None
         installation_id, repository, number, sha, attempts = (
@@ -75,12 +77,15 @@ def process_review(self, review_id: str):
                 content=github.get_file_content(repository, file.filename, sha), patch=file.patch)
                 for file in relevant_files]
         findings, component_errors = [], {}
+        static_start = perf_counter()
         static_status = "completed"
         try:
             findings.extend(StaticAnalyzer().analyze(sources))
         except Exception:
             static_status = "failed"
             component_errors["static_analysis"] = "static_analysis_failed"
+        static_seconds = perf_counter() - static_start
+        ai_start = perf_counter()
         ai_status = "disabled"
         summary.ai = {"enabled": settings.ai_enabled}
         if settings.ai_enabled:
@@ -95,10 +100,15 @@ def process_review(self, review_id: str):
             except Exception:
                 ai_status = "failed"
                 component_errors["ai_analysis"] = "ai_analysis_failed"
+        ai_seconds = perf_counter() - ai_start if settings.ai_enabled else None
         final_status = "failed" if component_errors else "completed"
         summary.report = ReportService().generate(review_id, findings, sources,
             status=final_status, static_analysis=static_status, ai_analysis=ai_status)
         summary.report["component_errors"] = component_errors
+        summary.report["measurements"] = {"queue_wait_seconds": queue_wait_seconds,
+            "static_analysis_seconds": static_seconds, "ai_analysis_seconds": ai_seconds,
+            "static_findings": sum(f.source != "ai" for f in findings),
+            "ai_findings": sum(f.source == "ai" for f in findings)}
     except StalePullRequest:
         finish(review_id, "superseded", "pull_request_changed")
         return {"status": "superseded", "review_id": review_id}
@@ -126,6 +136,8 @@ def process_review(self, review_id: str):
         review.github_repository_id = snapshot.github_repository_id
         review.base_sha = snapshot.base_sha
         review.changed_files = [file.model_dump() for file in relevant_files]
+        summary.report["measurements"]["job_to_report_seconds"] = (
+            datetime.now(timezone.utc) - review.created_at).total_seconds()
         review.scope_summary = summary.model_dump()
         db.execute(delete(Finding).where(Finding.review_job_id == UUID(review_id)))
         db.add_all([Finding(review_job_id=UUID(review_id), **finding.model_dump()) for finding in findings])

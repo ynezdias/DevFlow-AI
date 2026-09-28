@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,22 @@ router = APIRouter(
     prefix="/api/reviews",
     tags=["reviews"],
 )
+
+
+@router.get("")
+def list_reviews(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
+                 db: Session = Depends(get_db)):
+    total = db.scalar(select(func.count()).select_from(ReviewJob))
+    reviews = db.scalars(select(ReviewJob).order_by(ReviewJob.created_at.desc(), ReviewJob.id.desc())
+        .offset((page - 1) * page_size).limit(page_size)).all()
+    fields = ("id", "repository_name", "pull_request_number", "head_sha", "status", "created_at",
+              "started_at", "completed_at", "error_code", "publication_status", "github_check_run_id")
+    items = []
+    for review in reviews:
+        report = (review.scope_summary or {}).get("report")
+        items.append({**{field: getattr(review, field) for field in fields},
+            "finding_count": report["summary"]["total_findings"] if report else None})
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post(

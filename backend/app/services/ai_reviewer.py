@@ -44,6 +44,7 @@ class AIReviewer:
         self.transport = transport
         self.input_chars = 0
         self.file_count = 0
+        self.usage = []
 
     def analyze(self, repository_name: str, file_path: str, patch: str, context: str) -> list[CodeFinding]:
         cfg = self.config
@@ -88,7 +89,11 @@ class AIReviewer:
                     raise AIReviewError(f"ai_http_{response.status_code}")
                 break
         try:
-            candidate = response.json()["candidates"][0]
+            body = response.json()
+            if isinstance(body.get("usageMetadata"), dict):
+                self.usage.append({key: body["usageMetadata"].get(key) for key in
+                    ("promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount", "totalTokenCount")})
+            candidate = body["candidates"][0]
             if candidate.get("finishReason") != "STOP":
                 raise AIReviewError("ai_incomplete_response")
             raw = "".join(part["text"] for part in candidate["content"]["parts"] if not part.get("thought"))
@@ -126,4 +131,4 @@ class AIReviewer:
                 skipped.append({"filename": file.filename, "reason": str(exc)})
         return findings, {"enabled": True, "model": self.config.ai_model,
                           "reviewed_files": reviewed, "skipped_files": skipped, "failed_files": failed,
-                          "input_chars": self.input_chars}
+                          "input_chars": self.input_chars, "usage": self.usage}
