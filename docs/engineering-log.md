@@ -324,3 +324,17 @@ pause; it does not resolve the missing live GitHub App credentials.
   margin, plus scheduler interval and queue backlog. Whole-job retries may repeat
   LLM work/cost. GitHub remote visibility still prevents an exactly-once guarantee.
 - Live GitHub App and successful LLM integration remain separate outstanding gates.
+
+## Days 12–13 — 2026-09-30
+
+Implemented: split tests into unit/integration/reliability, added API/constraint
+and full mocked pipeline checks, pytest-cov, PR CI, and a 35-case frozen benchmark.
+Validation: 167 tests passed; 1,080/1,203 backend statements covered (89.78%).
+All 112 unit tests also passed with an unreachable database URL.
+Failure: the live evaluation's first Gemini request returned HTTP 503.
+Decision: stop further provider calls, retain static results, mark B/C and the
+full-file comparison incomplete, and leave tokens/cost unknown.
+Static baseline: 6 TP, 16 FP, 14 FN; strict line/category matching reveals taxonomy
+limitations as well as missed correctness issues. No labels were tuned afterward.
+Next gate: successful provider evaluation and independent review of benchmark
+labels; CI still needs a real remote PR run.

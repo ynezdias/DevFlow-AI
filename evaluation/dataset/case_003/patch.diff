@@ -1,0 +1,3 @@
+@@ -0,0 +1,2 @@
++def display(user):
++    return user.get("name")

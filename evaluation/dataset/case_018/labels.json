@@ -1,0 +1,13 @@
+{
+  "case_id": "case_018",
+  "category": "exception_handling",
+  "file": "app/example.py",
+  "contract": "Commit failure is swallowed while reporting success.",
+  "expected": [
+    {
+      "category": "correctness",
+      "file": "app/example.py",
+      "line": 5
+    }
+  ]
+}

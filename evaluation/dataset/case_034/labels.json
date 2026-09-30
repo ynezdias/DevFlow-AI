@@ -1,0 +1,7 @@
+{
+  "case_id": "case_034",
+  "category": "unchanged_none_validation",
+  "file": "app/example.py",
+  "contract": "Pre-existing issue is unchanged. Only a safe constant function is introduced.",
+  "expected": []
+}

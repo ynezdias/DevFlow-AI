@@ -1,0 +1,13 @@
+{
+  "case_id": "case_008",
+  "category": "resource_leak",
+  "file": "app/example.py",
+  "contract": "File is not closed or flushed deterministically.",
+  "expected": [
+    {
+      "category": "resource",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

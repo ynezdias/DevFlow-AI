@@ -1,0 +1,4 @@
+@@ -0,0 +1,3 @@
++def load(path):
++    stream = open(path)
++    return stream.read()

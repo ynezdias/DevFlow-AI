@@ -73,3 +73,42 @@ read, Pull requests read permissions; route only the webhook path through a tunn
 verify Gemini availability; open/update a dedicated test PR; save the job/check IDs,
 report, component timings and token usage; repeat with distinct commit SHAs. Do not
 reset production job identities to bypass deduplication.
+
+## Day 12 automated backend suite — 2026-09-30
+
+The final run passed **167 tests in 24.59 seconds** with **89.78% backend line
+coverage** (1,080 of 1,203 executable statements; 123 missed). pytest-cov rounds
+this to 90% in its terminal table. The machine-readable artifact is
+[backend-coverage.json](backend-coverage.json). This is line coverage, not branch
+coverage or proof of live GitHub/provider correctness.
+
+Tests are grouped into unit, integration, and reliability suites. They cover
+signed webhooks, review API validation, PostgreSQL uniqueness, diff locations,
+AI validation, tool failures, duplicate deliveries, retries, and the mocked
+webhook-to-persisted-report pipeline. No paid LLM is called. A separate run with
+an unreachable database URL passed all **112 unit tests in 11.51 seconds**.
+One upstream FastAPI/Starlette TestClient deprecation warning remains.
+
+Reproduce from the root (Docker must be running):
+
+```powershell
+docker compose build api
+docker compose up -d api
+docker cp evaluation devflow-api:/evaluation
+docker compose exec -T api pytest --cov=app --cov-report=term-missing
+```
+
+[Backend CI](../.github/workflows/ci.yml) runs on pull requests and main pushes:
+dependencies, Ruff correctness checks (E9/F63/F7/F82), fresh PostgreSQL migrations,
+pytest, and uploaded coverage XML. This is a focused correctness lint baseline,
+not an assertion that all Ruff style rules pass. The workflow is added locally;
+a remote GitHub Actions run has not been observed.
+
+## Day 13 evaluation baseline — 2026-09-30
+
+The 35-case static run measured TP=6, FP=16, FN=14: precision 27.27%, recall
+30.00%, F1 28.57%. Gemini returned HTTP 503 on the first request; AI-only,
+combined, and grounding comparisons have no completed cases. Token usage and
+cost remain unknown. See [AI evaluation](ai-evaluation.md) for the methodology,
+scoring limitations, and original results. These measurements do not establish
+that the AI reviewer is useful yet.

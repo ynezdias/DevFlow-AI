@@ -1,0 +1,1407 @@
+{
+  "dataset_sha256": "dc2c49dfc10a624141628b12c897aefdb3566c9b08282a07608e233b32512494",
+  "model": "gemini-3.8-flash",
+  "live_requested": true,
+  "matching": "exact normalized category, path, new-file line; one-to-one",
+  "summaries": {
+    "A": {
+      "completed_cases": 35,
+      "total_cases": 35,
+      "metrics": {
+        "tp": 6,
+        "fp": 16,
+        "fn": 14,
+        "precision": 0.2727272727272727,
+        "recall": 0.3,
+        "f1": 0.2857142857142857
+      }
+    },
+    "B": {
+      "completed_cases": 0,
+      "total_cases": 35,
+      "metrics": null
+    },
+    "C": {
+      "completed_cases": 0,
+      "total_cases": 35,
+      "metrics": null
+    },
+    "ungrounded": {
+      "completed_cases": 0,
+      "total_cases": 35,
+      "metrics": null
+    }
+  },
+  "cases": [
+    {
+      "case_id": "case_001",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.8736015970007429,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "failed",
+        "error": "ai_http_503",
+        "seconds": 1.5776267740002368,
+        "usage": []
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_002",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.506140313999822,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_003",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.509457805999773,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_004",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.5637987889995202,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_005",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 3
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.532464680000885,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_006",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 3
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.6370820769998318,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_007",
+      "expected": [
+        {
+          "category": "resource",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.6515668880001613,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 2,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff SIM115",
+            "description": "Use a context manager for opening files",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_008",
+      "expected": [
+        {
+          "category": "resource",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.49639638400003605,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 2,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff SIM115",
+            "description": "Use a context manager for opening files",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_009",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 3
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.49880671800019627,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff I001",
+            "description": "Import block is un-sorted or un-formatted",
+            "suggestion": "Organize imports"
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 3,
+            "source": "bandit",
+            "category": "security",
+            "severity": "high",
+            "title": "start_process_with_a_shell",
+            "description": "Starting a process with a shell, possible injection detected, security issue.",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_010",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 3
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.8290491630004908,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "bandit",
+            "category": "security",
+            "severity": "low",
+            "title": "blacklist",
+            "description": "Consider possible security implications associated with the subprocess module.",
+            "suggestion": null
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff I001",
+            "description": "Import block is un-sorted or un-formatted",
+            "suggestion": "Organize imports"
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 3,
+            "source": "bandit",
+            "category": "security",
+            "severity": "high",
+            "title": "subprocess_popen_with_shell_equals_true",
+            "description": "subprocess call with shell=True identified, security issue.",
+            "suggestion": null
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 3,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff PLW1510",
+            "description": "`subprocess.run` without explicit `check` argument",
+            "suggestion": "Add explicit `check=False`"
+          }
+        ],
+        "score": {
+          "tp": 1,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.25,
+          "recall": 1.0,
+          "f1": 0.4
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_011",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.8482736799996928,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 2,
+            "source": "bandit",
+            "category": "security",
+            "severity": "medium",
+            "title": "hardcoded_sql_expressions",
+            "description": "Possible SQL injection vector through string-based query construction.",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_012",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.8303694420001193,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 2,
+            "source": "bandit",
+            "category": "security",
+            "severity": "medium",
+            "title": "hardcoded_sql_expressions",
+            "description": "Possible SQL injection vector through string-based query construction.",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_013",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 1.0179960499999652,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 2,
+            "source": "bandit",
+            "category": "security",
+            "severity": "low",
+            "title": "hardcoded_password_string",
+            "description": "Possible hardcoded password: 'synthetic-demo-password'",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_014",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.838102558999708,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 2,
+            "source": "bandit",
+            "category": "security",
+            "severity": "low",
+            "title": "hardcoded_password_string",
+            "description": "Possible hardcoded password: 'synthetic-test-token'",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_015",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 3
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.6871572119998746,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff I001",
+            "description": "Import block is un-sorted or un-formatted",
+            "suggestion": "Organize imports"
+          }
+        ],
+        "score": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_016",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 3
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.5352556050002022,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff I001",
+            "description": "Import block is un-sorted or un-formatted",
+            "suggestion": "Organize imports"
+          }
+        ],
+        "score": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_017",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 4
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4456165820001843,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_018",
+      "expected": [
+        {
+          "category": "correctness",
+          "file": "app/example.py",
+          "line": 5
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4834531899996364,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 4,
+            "source": "bandit",
+            "category": "correctness",
+            "severity": "low",
+            "title": "try_except_pass",
+            "description": "Try, Except, Pass detected.",
+            "suggestion": null
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 4,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff BLE001",
+            "description": "Do not catch blind exception: `Exception`",
+            "suggestion": null
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 4,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff S110",
+            "description": "`try`-`except`-`pass` detected, consider logging the exception",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 0,
+          "fp": 3,
+          "fn": 1,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_019",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.45467368600020563,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_020",
+      "expected": [
+        {
+          "category": "security",
+          "file": "app/example.py",
+          "line": 2
+        }
+      ],
+      "A": {
+        "status": "completed",
+        "seconds": 0.462535592999302,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_021",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.46640805399965757,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_022",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.47227511199980654,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_023",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4922272300000259,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_024",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.5257220220000818,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_025",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4884513890001472,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_026",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.5519278140000097,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "bandit",
+            "category": "security",
+            "severity": "low",
+            "title": "blacklist",
+            "description": "Consider possible security implications associated with the subprocess module.",
+            "suggestion": null
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff I001",
+            "description": "Import block is un-sorted or un-formatted",
+            "suggestion": "Organize imports"
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 3,
+            "source": "bandit",
+            "category": "security",
+            "severity": "low",
+            "title": "subprocess_without_shell_equals_true",
+            "description": "subprocess call - check for execution of untrusted input.",
+            "suggestion": null
+          },
+          {
+            "file_path": "app/example.py",
+            "line_number": 3,
+            "source": "bandit",
+            "category": "security",
+            "severity": "low",
+            "title": "start_process_with_partial_path",
+            "description": "Starting a process with a partial executable path",
+            "suggestion": null
+          }
+        ],
+        "score": {
+          "tp": 0,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.0,
+          "recall": null,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_027",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.7901691050001318,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_028",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.502648562000104,
+        "findings": [
+          {
+            "file_path": "app/example.py",
+            "line_number": 1,
+            "source": "ruff",
+            "category": "correctness",
+            "severity": "low",
+            "title": "Ruff I001",
+            "description": "Import block is un-sorted or un-formatted",
+            "suggestion": "Organize imports"
+          }
+        ],
+        "score": {
+          "tp": 0,
+          "fp": 1,
+          "fn": 0,
+          "precision": 0.0,
+          "recall": null,
+          "f1": 0.0
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_029",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4873821699993641,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_030",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.48396957800014206,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_031",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.47393956599989906,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_032",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4463733940001475,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_033",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4190851240000484,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_034",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.44780792700021266,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    },
+    {
+      "case_id": "case_035",
+      "expected": [],
+      "A": {
+        "status": "completed",
+        "seconds": 0.4280691260000822,
+        "findings": [],
+        "score": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "B": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "ungrounded": {
+        "status": "not_run",
+        "reason": "ai_http_503"
+      },
+      "C": {
+        "status": "not_run",
+        "reason": "requires_successful_B"
+      }
+    }
+  ]
+}

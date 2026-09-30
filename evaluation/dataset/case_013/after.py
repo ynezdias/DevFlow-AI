@@ -1,0 +1,3 @@
+def connect(client):
+    password = "synthetic-demo-password"
+    return client.login(password=password)

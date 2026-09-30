@@ -1,0 +1,6 @@
+@@ -1,2 +1,5 @@
+ def normalize(value):
+     return value.strip()
++
++def added_constant():
++    return 42

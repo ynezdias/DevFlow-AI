@@ -1,0 +1,13 @@
+{
+  "case_id": "case_002",
+  "category": "division_by_zero",
+  "file": "app/example.py",
+  "contract": "Empty values cause division by zero.",
+  "expected": [
+    {
+      "category": "correctness",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

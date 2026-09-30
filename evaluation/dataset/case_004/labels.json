@@ -1,0 +1,13 @@
+{
+  "case_id": "case_004",
+  "category": "none_validation",
+  "file": "app/example.py",
+  "contract": "value is an optional string and None is permitted by callers.",
+  "expected": [
+    {
+      "category": "correctness",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "case_010",
+  "category": "shell_execution",
+  "file": "app/example.py",
+  "contract": "Untrusted name is interpolated into a shell command.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 3
+    }
+  ]
+}

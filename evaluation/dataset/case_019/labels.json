@@ -1,0 +1,13 @@
+{
+  "case_id": "case_019",
+  "category": "authorization",
+  "file": "app/example.py",
+  "contract": "Non-admin callers can delete arbitrary users; no ownership or permission check.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "case_013",
+  "category": "hardcoded_credential",
+  "file": "app/example.py",
+  "contract": "Credential literal in source. This fixture value is synthetic, not a real secret.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

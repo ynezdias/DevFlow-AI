@@ -1,0 +1,13 @@
+{
+  "case_id": "case_009",
+  "category": "shell_execution",
+  "file": "app/example.py",
+  "contract": "command is externally supplied; shell metacharacters execute commands.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 3
+    }
+  ]
+}

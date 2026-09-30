@@ -1,0 +1,13 @@
+{
+  "case_id": "case_015",
+  "category": "path_traversal",
+  "file": "app/example.py",
+  "contract": "Untrusted name can escape the public directory using ../ or an absolute path.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 3
+    }
+  ]
+}

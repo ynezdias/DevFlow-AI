@@ -1,0 +1,13 @@
+{
+  "case_id": "case_017",
+  "category": "exception_handling",
+  "file": "app/example.py",
+  "contract": "int raises ValueError for invalid text; KeyError does not catch it.",
+  "expected": [
+    {
+      "category": "correctness",
+      "file": "app/example.py",
+      "line": 4
+    }
+  ]
+}

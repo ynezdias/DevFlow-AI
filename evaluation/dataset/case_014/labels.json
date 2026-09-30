@@ -1,0 +1,13 @@
+{
+  "case_id": "case_014",
+  "category": "hardcoded_credential",
+  "file": "app/example.py",
+  "contract": "Hardcoded authentication token; value is intentionally synthetic.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

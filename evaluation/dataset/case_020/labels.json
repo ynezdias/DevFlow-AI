@@ -1,0 +1,13 @@
+{
+  "case_id": "case_020",
+  "category": "authorization",
+  "file": "app/example.py",
+  "contract": "Any authenticated user can retrieve another user invoice without ownership validation.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

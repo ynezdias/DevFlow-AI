@@ -1,0 +1,6 @@
+@@ -1,2 +1,5 @@
+ def display(user):
+     return user.get("name")
++
++def added_constant():
++    return 42

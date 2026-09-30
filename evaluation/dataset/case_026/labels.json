@@ -1,0 +1,7 @@
+{
+  "case_id": "case_026",
+  "category": "clean",
+  "file": "app/example.py",
+  "contract": "No actionable issue under the documented contract; local path inputs are trusted unless stated otherwise.",
+  "expected": []
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "case_006",
+  "category": "boundary",
+  "file": "app/example.py",
+  "contract": "index equal to length is incorrectly admitted.",
+  "expected": [
+    {
+      "category": "correctness",
+      "file": "app/example.py",
+      "line": 3
+    }
+  ]
+}

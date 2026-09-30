@@ -1,0 +1,2 @@
+def at(items, index):
+    return items[index] if 0 <= index < len(items) else None

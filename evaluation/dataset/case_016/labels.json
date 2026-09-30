@@ -1,0 +1,13 @@
+{
+  "case_id": "case_016",
+  "category": "path_traversal",
+  "file": "app/example.py",
+  "contract": "Untrusted path may delete files outside uploads.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 3
+    }
+  ]
+}

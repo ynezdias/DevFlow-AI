@@ -1,0 +1,4 @@
+@@ -0,0 +1,3 @@
++import subprocess
++def run(name):
++    subprocess.run("echo " + name, shell=True)

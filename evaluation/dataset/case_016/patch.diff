@@ -1,0 +1,4 @@
+@@ -0,0 +1,3 @@
++import os
++def remove(name):
++    os.remove(os.path.join("/srv/uploads", name))

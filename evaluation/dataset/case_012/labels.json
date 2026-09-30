@@ -1,0 +1,13 @@
+{
+  "case_id": "case_012",
+  "category": "sql_injection",
+  "file": "app/example.py",
+  "contract": "Untrusted user_id is interpolated without parameterization.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "case_007",
+  "category": "resource_leak",
+  "file": "app/example.py",
+  "contract": "Opened file is never explicitly closed, including exception paths.",
+  "expected": [
+    {
+      "category": "resource",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}

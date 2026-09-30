@@ -1,0 +1,6 @@
+@@ -1,2 +1,5 @@
+ def ratio(total, count):
+     return total / count
++
++def added_constant():
++    return 42

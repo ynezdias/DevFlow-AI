@@ -1,0 +1,13 @@
+{
+  "case_id": "case_011",
+  "category": "sql_injection",
+  "file": "app/example.py",
+  "contract": "Untrusted name changes SQL query structure.",
+  "expected": [
+    {
+      "category": "security",
+      "file": "app/example.py",
+      "line": 2
+    }
+  ]
+}
