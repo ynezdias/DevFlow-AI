@@ -11,3 +11,4 @@ celery[redis]
 PyJWT[crypto]
 ruff
 bandit
+pytest-cov
