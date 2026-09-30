@@ -297,3 +297,30 @@ pause; it does not resolve the missing live GitHub App credentials.
 - Final Chromium browser run: 3 tests passed (49.7s), covering live dashboard/API
   connectivity, mocked partial-review navigation/polling, inert hostile finding
   text, and visible API errors. Final API/database health check passed.
+
+
+## Day 11 - Durable retries and worker recovery (verified 2026-09-29)
+
+- Implemented persisted claim tokens/expiry, retry deadlines, last_error and
+  separate publication attempt budgets. Maximum four job/publication attempts;
+  transient GitHub/LLM failures retry with backoff, permanent errors terminate.
+- Single Celery Beat scheduler dispatches the PostgreSQL recovery sweep every 30s.
+  Queue intent survives enqueue failure; expired claims can be reclaimed and old
+  claim tokens cannot commit over a newer attempt. Partial findings persist.
+- Reviewed/applied Alembic revision d1c51114d44e; final schema check reports no drift.
+- Crash evidence from 2026-09-28: isolated prefork Celery worker used real Redis,
+  PostgreSQL, Ruff/Bandit and mocked GitHub (AI disabled). First fixture hit the
+  10s hard limit, then container stop/start; second fixture was SIGKILLed immediately
+  after claiming work. Both completed on attempt 2 after their 40s claims expired,
+  with one finding each. Redelivery after completion was skipped. Recovery was
+  explicitly invoked for those fixture IDs; this was not a live GitHub test.
+- Cleanup on 2026-09-29 removed only those two completed fixture rows and the
+  isolated container. Restored three normal workers and the single scheduler.
+- Final regression: 163 tests passed in 10.23s, including replayed webhooks, claim
+  expiry, stale-writer rejection, retry deadlines, bounded AI retries, permanent
+  authentication errors, safe structured logs, and stale SHA publication checks.
+  One existing Starlette deprecation warning remains. API/database health passed.
+- Production recovery delay is intentionally longer: 1800s hard limit + 30s claim
+  margin, plus scheduler interval and queue backlog. Whole-job retries may repeat
+  LLM work/cost. GitHub remote visibility still prevents an exactly-once guarantee.
+- Live GitHub App and successful LLM integration remain separate outstanding gates.
