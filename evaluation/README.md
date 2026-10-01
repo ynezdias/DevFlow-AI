@@ -34,3 +34,19 @@ docker compose exec -T api pytest --cov=app --cov-report=term-missing
 
 CI checks out both directories and needs no copy step. See
 [methodology and results](../docs/ai-evaluation.md) for limitations.
+
+## Separate provider latency run
+
+After confirming provider availability and a call budget, run:
+
+```powershell
+$env:PYTHONPATH = "backend"
+python evaluation/performance.py --live --count 10 --output evaluation/performance-results.json
+```
+
+This runner records successful median/P95 request latency, failure rate, and
+provider-reported input/output/thinking tokens separately from infrastructure
+throughput. It uses zero request retries. Cost remains null until dated pricing
+for the configured model and all billed token categories is verified. It has not
+been run as part of the zero-spend Vercel deployment; the last evaluation request
+failed with HTTP 503. It measures provider calls, not end-to-end pipeline duration.

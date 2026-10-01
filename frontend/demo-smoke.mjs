@@ -1,0 +1,15 @@
+import {chromium} from '@playwright/test';
+const browser=await chromium.launch({executablePath:process.env.BROWSER_PATH || '/usr/bin/chromium',args:['--no-sandbox']});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});
+const calls=[];page.on('request',r=>{if(r.url().includes('/api/'))calls.push(r.url())});
+await page.goto(process.env.DEMO_URL || 'http://localhost:4173');
+await page.getByText('SAMPLE DEMO',{exact:true}).waitFor();
+await page.getByRole('link',{name:/sample\/python-review/}).waitFor();
+await page.screenshot({path:(process.env.ARTIFACT_DIR || '/tmp') + '/dashboard-sample.png',fullPage:true});
+await page.getByRole('link',{name:/sample\/python-review/}).click();
+await page.getByRole('heading',{name:'1 validated findings'}).waitFor();
+await page.getByText('Use a fixed executable and an argument list with shell=False.').waitFor();
+await page.screenshot({path:(process.env.ARTIFACT_DIR || '/tmp') + '/finding-sample.png',fullPage:true});
+if(calls.length)throw new Error('Sample demo unexpectedly contacted an API');
+console.log('Sample navigation and findings passed; zero backend requests.');
+await browser.close();

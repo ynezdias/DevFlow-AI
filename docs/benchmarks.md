@@ -112,3 +112,17 @@ combined, and grounding comparisons have no completed cases. Token usage and
 cost remain unknown. See [AI evaluation](ai-evaluation.md) for the methodology,
 scoring limitations, and original results. These measurements do not establish
 that the AI reviewer is useful yet.
+
+## Day 14 preliminary attempts
+
+The first benchmark attempt raced API migrations, producing a missing-table error
+before any review was stored. The load generator now waits for database health
+before starting the timer. The first matrix attempt later lost Docker during the
+four-worker/250-event run. Eight completed preliminary files are retained under
+benchmark-initial/; that attempt is not the final clean baseline. Other tests and
+builds shared its resources. Some wall-clock queue samples exceed monotonic run
+duration, so those timestamps must not be interpreted as a controlled latency result.
+
+A fresh Compose project was used for the final matrix, without concurrent tests
+or Docker builds. Development containers remained stopped during that run after
+engine recovery. These are single runs, not repeated trials or confidence intervals.

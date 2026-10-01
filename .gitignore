@@ -28,6 +28,7 @@ htmlcov/
 !.env.example
 
 # Frontend generated output
+.vercel/
 node_modules/
 dist/
 playwright-report/

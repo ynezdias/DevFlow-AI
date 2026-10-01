@@ -1,624 +1,187 @@
 # DevFlow AI
 
-**AI-Powered Pull Request Review Platform**
+DevFlow AI reviews Python pull-request changes with Ruff, Bandit, and a Gemini reviewer, validates findings, and publishes advisory GitHub Checks through a durable Celery pipeline.
 
-DevFlow AI is an automated code review platform designed to analyze GitHub pull requests using a combination of static analysis and Large Language Models (LLMs). The platform is being built to identify potential bugs, security vulnerabilities, and code-quality issues while providing developers with structured, actionable feedback directly within their GitHub workflow.
+## Demo
 
-The project focuses not only on AI-powered code analysis, but also on building a reliable event-driven backend capable of handling asynchronous jobs, duplicate webhook events, retries, failures, and concurrent review processing.
+[Open the free Vercel demo](https://devflow-ai-demo.vercel.app). It is a **public sample-data dashboard**, not a hosted review pipeline.
+It contains no private repository data, provider keys, or live API connection.
+Run the full stack locally to inspect real persisted reviews.
 
-> **Project Status:** 🚧 Currently under active development.
+Live GitHub-to-cloud acceptance remains incomplete: App credentials and an always-running backend host are still required. Gemini's last measured evaluation request returned HTTP 503.
 
-## Implementation Status
+![Sample dashboard](docs/images/dashboard-sample.png)
 
-### Implemented
+[Sample finding](docs/images/finding-sample.png) ? [Architecture diagram](docs/images/architecture.svg)
 
-- [x] FastAPI backend
-- [x] PostgreSQL persistence
-- [x] Redis infrastructure
-- [x] Review-job API
-- [x] Signed PR webhook ingestion with delivery deduplication
-- [x] Alembic migrations
-- [x] Docker Compose
-- [x] Celery worker scaffold (analysis not implemented)
+## What It Does
 
-The API creates and retrieves review jobs. Duplicate requests for the same
-repository, pull-request number, and head SHA return HTTP 409. Persistence has
-been verified across a Compose restart. Redis is running as infrastructure;
-Celery runs a database-only worker scaffold; code analysis is not implemented yet.
+Authenticates GitHub pull-request webhooks, persists a commit-specific review job,
+queues its ID, fetches Python source at the exact head SHA, analyzes changes,
+validates locations, stores a structured report, and publishes advisory findings.
+The dashboard exposes history, component statuses, and suggested fixes.
 
-### Planned
+## Architecture
 
-- [ ] GitHub App deployment and verified real deliveries
-- [ ] Static analysis
-- [ ] AI reviewer
-- [ ] GitHub Check Runs
-
-See [the architecture document](docs/architecture.md) for current behavior and
-the planned Day 3+ workflow.
-
----
-
-## 🎯 Project Goals
-
-DevFlow AI is being built to explore the intersection of **software engineering, distributed systems, and applied AI**.
-
-The platform aims to:
-
-* Automatically analyze GitHub pull requests.
-* Detect potential correctness and security issues.
-* Run static analysis using tools such as Ruff and Bandit.
-* Use an LLM to perform contextual code review.
-* Generate structured and actionable review findings.
-* Publish review results through GitHub Check Runs.
-* Process reviews asynchronously using background workers.
-* Handle duplicate events and failed jobs safely.
-* Measure review latency, throughput, AI quality, and system reliability.
-
----
-
-## ⚙️ Planned Workflow
-
-```text
-Developer opens/updates Pull Request
-                │
-                ▼
-         GitHub Webhook
-                │
-                ▼
-        FastAPI Backend
-                │
-        ┌───────┴────────┐
-        │                │
-        ▼                ▼
-   PostgreSQL       Redis Queue
-                         │
-                         ▼
-                   Celery Worker
-                         │
-                ┌────────┴────────┐
-                ▼                 ▼
-          Static Analysis     AI Analysis
-          Ruff + Bandit          LLM
-                │                 │
-                └────────┬────────┘
-                         ▼
-                  Report Aggregator
-                         │
-                  ┌──────┴──────┐
-                  ▼             ▼
-             PostgreSQL    GitHub Check Run
-                  │
-                  ▼
-            React Dashboard
+```mermaid
+flowchart TD
+  GH[GitHub PR] -->|Signed webhook| API[FastAPI]
+  API --> DB[(PostgreSQL)]
+  API -->|Job ID after commit| Redis[(Redis)]
+  Redis --> Worker[Celery workers]
+  Worker --> Source[GitHub source at head SHA]
+  Source --> Static[Ruff / Bandit]
+  Source --> AI[Gemini]
+  Static --> Validate[Finding validation and deduplication]
+  AI --> Validate
+  Validate --> DB
+  DB --> Checks[GitHub Checks]
+  DB --> Dashboard[Local React dashboard]
+  Beat[Single recovery scheduler] --> Redis
 ```
 
-### Planned Review Lifecycle
+See [architecture](docs/architecture.md) for implementation details.
 
-1. A developer opens or updates a pull request.
-2. GitHub sends a signed webhook event to DevFlow AI.
-3. The FastAPI backend validates the webhook and creates a review job.
-4. The review job is persisted in PostgreSQL and submitted for asynchronous processing.
-5. A Celery worker retrieves the pull-request changes.
-6. Ruff and Bandit perform static analysis.
-7. An LLM analyzes the changed code for additional issues.
-8. Findings are validated, normalized, and deduplicated.
-9. Results are stored in PostgreSQL.
-10. DevFlow AI publishes the review through GitHub Checks.
-11. Review history and metrics can be inspected through the dashboard.
+## Features
 
----
+- HMAC SHA-256 authentication before JSON processing.
+- Delivery-ID and repository/PR/SHA uniqueness constraints.
+- Full source retrieval with explicit file/diff/input limits and recorded skips.
+- Ruff/Bandit plus optional structured Gemini findings.
+- Separate analysis statuses, retained partial results, validated changed-line reports.
+- Bounded retries, database leases, periodic recovery, stale-SHA checks.
+- Check-ID reuse and annotation reconciliation, with batches of up to 50.
+- Paginated dashboard with polling; automated unit, integration, and reliability tests.
 
-## 🛠️ Tech Stack
+These components are implemented and locally tested. Successful live GitHub publishing and the complete cloud workflow have not been verified.
 
-The backend uses Python, FastAPI, SQLAlchemy, Alembic, and PostgreSQL, with
-Docker Compose and Redis infrastructure. The stack below also includes planned
-tools; Celery, AI analysis, frontend, and GitHub integrations are future work.
+## Tech Stack
 
-### Backend
+Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis, Celery, Ruff, Bandit,
+Gemini REST API, React, TypeScript, Vite, Docker Compose, pytest, Playwright,
+and GitHub Actions. Vercel Hobby hosts the sample frontend only.
 
-* Python
-* FastAPI
-* SQLAlchemy
-* Alembic
-* PostgreSQL
+## How It Works
 
-### Asynchronous Processing
+The API commits before enqueueing. Workers load authoritative state from PostgreSQL
+and analyze inert source files without executing repository code. Findings must
+reference a real file and added line in the reviewed commit. Reports retain
+original normalized findings and merge/rejection information. Publication checks
+the PR head again; outdated jobs become superseded. Findings are advisory, not
+proof of a bug. AI severity alone does not fail a Check Run.
 
-* Redis
-* Celery
+## Local Setup
 
-### AI & Code Analysis
+Requirements: Docker with Compose. Node 22.12+ is needed only for host frontend development.
 
-* LLM API
-* Ruff
-* Bandit
-* Pydantic structured-output validation
+```powershell
+Copy-Item .env.example .env
+# Edit .env locally; never commit real keys.
+docker compose up -d --build
+docker compose exec api alembic upgrade head
+```
 
-### Frontend
+Open http://localhost:5173 and http://localhost:8000/docs. PostgreSQL and Redis
+have no host ports; API/dashboard bind to loopback. One scheduler performs durable
+job recovery. Scale workers with `docker compose up -d --scale worker=3`.
+Set `AI_ENABLED=true` only when the Gemini key/model are configured. Provider
+calls can incur cost; automated tests and infrastructure benchmarks use fakes.
 
-* React
-* TypeScript
-* Vite
+## GitHub App Setup
 
-### Infrastructure
+Create an App with Checks read/write, Contents read, and Pull requests read.
+Subscribe to pull_request events; accept any updated installation permissions.
+Set GITHUB_APP_ID, place the PEM at the ignored `.secrets/github-app.pem`, and
+set GITHUB_WEBHOOK_SECRET to a locally generated random value. Use the same
+secret in the App. Route only `/api/webhooks/github` through an HTTPS tunnel.
+Supported actions: opened, synchronize, reopened.
 
-* Docker
-* Docker Compose
-* GitHub Actions
+Set GITHUB_CHECKS_ENABLED=true on workers. Install the App on a dedicated test
+repository, open a Python PR, verify the stored report, then inspect the Check
+Run on its exact SHA. [Deployment instructions](docs/deployment.md) distinguish
+the free frontend from the still-required backend host.
 
-### Testing & Performance
+## API
 
-* Pytest
-* HTTPX
-* Locust
-
-### External Integration
-
-* GitHub Apps
-* GitHub REST API
-* GitHub Webhooks
-* GitHub Checks API
-
----
-
-## 🔌 Implemented API
-
-| Method | Endpoint | Description |
+| Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/` | Service information |
-| `GET` | `/health` | Service and PostgreSQL connectivity status |
-| `POST` | `/api/reviews` | Create a review job; reject duplicates with HTTP 409 |
-| `GET` | `/api/reviews/{review_id}` | Retrieve a persisted review job |
+| GET | /health | Database health |
+| POST | /api/webhooks/github | Signed GitHub delivery |
+| POST | /api/reviews | Create a queued review (409 for duplicate commit) |
+| GET | /api/reviews?page=1&page_size=12 | Paginated history |
+| GET | /api/reviews/{id} | Review state and metadata |
+| GET | /api/reviews/{id}/findings | Raw normalized findings for audit |
+| GET | /api/reviews/{id}/report | Validated combined report |
+| GET | /api/metrics/summary | Status counts |
 
-Interactive API documentation: [Swagger UI](http://localhost:8000/docs).
+Read/create routes have no user authentication or repository authorization.
+Keep them private. Manual review creation alone does not supply App installation
+metadata; the signed PR webhook is the supported full-processing entry point.
 
-## Planned API Additions
+## Testing
 
-| Method | Endpoint                   | Description                                |
-| ------ | -------------------------- | ------------------------------------------ |
-| `POST` | `/api/webhooks/github`     | Implemented: authenticate, deduplicate, and persist PR review jobs |
-| `GET`  | `/api/repositories`        | List connected repositories                |
-| `GET`  | `/api/reviews`             | List pull-request reviews                  |
-| `GET`  | `/api/reviews/{id}`        | Extend existing job retrieval with findings |
-| `GET`  | `/api/reviews/{id}/status` | Retrieve review-processing status          |
-| `POST` | `/api/reviews/{id}/retry`  | Retry an eligible failed review            |
-| `GET`  | `/api/metrics/summary`     | Retrieve processing metrics                |
-
----
-
-## 🤖 Planned AI Review Pipeline
-
-The AI reviewer is designed around structured and verifiable outputs rather than unrestricted natural-language responses.
-
-```text
-Pull Request Diff
-        │
-        ▼
-Input Preparation
-        │
-        ├── Diff size limits
-        ├── File filtering
-        └── Secret redaction
-        │
-        ▼
-Static Analysis
-Ruff + Bandit
-        │
-        ▼
-LLM Code Analysis
-        │
-        ▼
-Pydantic Validation
-        │
-        ├── Validate file paths
-        ├── Validate line numbers
-        └── Validate response schema
-        │
-        ▼
-Finding Normalization
-        │
-        ▼
-Deduplication
-        │
-        ▼
-Final Review Report
+```powershell
+docker cp evaluation devflow-api:/evaluation
+docker compose exec api pytest --cov=app --cov-report=term-missing
 ```
 
-Repository content is treated as **untrusted input**. AI-generated output will be validated before findings can be published.
-
-The LLM is used as an advisory reviewer and is not permitted to execute commands, access application secrets, modify repositories, or automatically merge pull requests.
-
----
-
-## 🔒 Reliability & Security
-
-DevFlow AI is being designed around several important reliability principles.
-
-### Idempotent Processing
-
-GitHub may deliver the same webhook multiple times once webhook ingestion is added. Review jobs already use a database unique constraint based on:
-
-```text
-repository + pull request number + head commit SHA
-```
-
-This prevents duplicate job records for the same commit. The API returns HTTP 409 for duplicates. Worker retries and deduplication of external side effects are planned.
-
-### Commit-Aware Reviews
-
-Every review is associated with an exact Git commit SHA.
-
-Before publishing findings, DevFlow AI will verify that the pull request still references that commit. Reviews for outdated commits can therefore be marked as superseded instead of being presented as current results.
-
-### Failure Recovery
-
-Background jobs will support:
-
-* bounded retries
-* exponential backoff
-* terminal failure states
-* stale-job detection
-* worker failure recovery
-
-PostgreSQL acts as the durable source of review-job state instead of relying solely on the Redis queue.
-
-### Secure Code Analysis
-
-The initial version will **not execute arbitrary repository code or install repository dependencies**.
-
-Static analysis will operate on retrieved source files without running untrusted project scripts.
-
----
-
-## 🧪 Testing Strategy
-
-The project will include several levels of testing:
-
-### Unit Tests
-
-Testing individual components such as:
-
-* webhook signature validation
-* job creation
-* duplicate detection
-* job state transitions
-* AI response parsing
-* finding validation
-* retry logic
-
-### Integration Tests
-
-Testing interactions between:
-
-```text
-FastAPI ↔ PostgreSQL ↔ Redis ↔ Celery
-```
-
-### Reliability Tests
-
-Failure scenarios will include:
-
-* duplicate GitHub webhook deliveries
-* concurrent workers
-* worker crashes
-* Redis interruptions
-* malformed LLM responses
-* GitHub API rate limiting
-* stale pull-request commits
-
-### AI Evaluation
-
-A labeled dataset of Python code changes will be used to evaluate AI review quality using:
-
-* Precision
-* Recall
-* False-positive rate
-
-The LLM-based reviewer will also be compared with static analysis alone.
-
----
-
-## 📊 Performance Goals
-
-The following values are **development targets and not measured results**:
-
-| Metric                    |    Initial Target |
-| ------------------------- | ----------------: |
-| Webhook API P95 latency   |        `< 500 ms` |
-| Load-test queue           | `100 review jobs` |
-| Duplicate logical reviews |               `0` |
-| AI evaluation dataset     |    `50+ examples` |
-| Backend test coverage     |            `80%+` |
-
-Actual benchmark results will be documented after implementation and reproducible testing.
-
----
-
-## 🗺️ Development Roadmap
-
-### Phase 1 — Backend & GitHub Integration
-
-* [x] Initialize FastAPI backend
-* [x] Configure PostgreSQL
-* [x] Configure Redis infrastructure
-* [x] Add SQLAlchemy models
-* [x] Add Alembic migrations
-* [ ] Create GitHub App
-* [x] Verify webhook signatures
-* [x] Implement review-job creation API
-* [ ] Add Celery workers
-* [ ] Retrieve pull-request diffs
-* [ ] Integrate Ruff and Bandit
-
-### Phase 2 — AI Review Engine
-
-* [ ] Integrate LLM provider
-* [ ] Implement structured review prompts
-* [ ] Validate responses with Pydantic
-* [ ] Validate file and line references
-* [ ] Normalize findings
-* [ ] Deduplicate findings
-* [ ] Publish GitHub Check Runs
-* [ ] Build React dashboard
-
-### Phase 3 — Reliability & Evaluation
-
-* [ ] Implement retry and recovery mechanisms
-* [ ] Add unit tests
-* [ ] Add integration tests
-* [ ] Add reliability tests
-* [ ] Build AI evaluation dataset
-* [ ] Benchmark AI review quality
-* [ ] Run load tests
-* [ ] Add CI/CD
-* [ ] Deploy application
-* [ ] Document benchmark results
-
----
-
-## 🚧 Current Status
-
-DevFlow AI is currently under development.
-
-The Day 2 backend supports this implemented flow:
-
-```text
-HTTP client / Swagger UI
-      ↓
-FastAPI review-job API
-      ↓
-PostgreSQL
-```
-
-Signed PR webhook ingestion, Celery processing, PostgreSQL persistence, and static
-analysis are implemented. Gemini AI review is implemented; GitHub Check publishing is implemented; live App verification requires credentials.
-Live GitHub App delivery still requires credentials and a reachable webhook URL.
-
----
-
-## 📈 Future Improvements
-
-Potential future extensions include:
-
-* JavaScript and TypeScript repository support
-* Java repository support
-* repository-specific review policies
-* multi-provider LLM support
-* retrieval of additional repository context
-* developer feedback loops for AI findings
-* calibrated finding confidence
-* advanced observability and tracing
-* isolated sandbox environments for automated test execution
-
----
-
-
-## ⚠️ Disclaimer
-
-DevFlow AI is an experimental developer tool. AI-generated code-review findings may contain false positives or miss issues and should not replace human code review or established security practices.
-
-Webhook ingestion now supports opened, synchronize, and reopened PR events.
-Delivery IDs and review commit identities provide two database deduplication layers.
-A real GitHub delivery requires the App installation and public webhook URL to be configured.
-
-Celery queue foundation: supported webhooks now persist, enqueue, and return HTTP 202.
-Workers retrieve full Python source at the review head SHA and run Ruff and Bandit. Gemini review runs when `AI_ENABLED=true`.
-See [architecture](docs/architecture.md#celery-queue-foundation) for delivery recovery limits.
-
-GitHub App service and worker changed-file retrieval are implemented. Configure
-`GITHUB_APP_ID` and the ignored `.secrets/github-app.pem` before live use. Review
-responses expose persisted `changed_files` (including patches) and safe error codes.
-Completion means scoped static analysis, optional Gemini review, and persisted findings. Read them with
-`GET /api/reviews/{review_id}/findings`. Only findings starting on added diff lines are returned.
-
-
-Review scope defaults: 20 Python files, 20,000 patch characters per file, and
-100,000 total patch characters. Configure `MAX_FILES`,
-`MAX_PATCH_CHARS_PER_FILE`, and `MAX_TOTAL_PATCH_CHARS` in `.env`, then recreate
-workers. Review responses include typed selected files, repository/base metadata,
-and `scope_summary` with every skipped filename and reason. Temporary GitHub
-failures receive bounded retries.
-
-Development evidence: [Engineering log](docs/engineering-log.md) records observed
-failures, design decisions, measurements, and intentional PR fixtures.
-
-
-## Gemini reviewer
-
-Set `AI_ENABLED=true`, `AI_PROVIDER=gemini`, `AI_MODEL=gemini-3.8-flash`, and
-`GEMINI_API_KEY` in the ignored local `.env`. Recreate workers after changing them.
-The key is passed only to workers, never baked into images. Do not put secret
-values in `.gitignore`; it contains filename patterns, not credentials.
-
-The reviewer uses Gemini REST through the existing httpx dependency. Code and
-diffs are sent as untrusted user data, separate from fixed system instructions.
-Returned findings must validate against the common schema, reference the supplied
-file, and start on an added diff line. AI and static findings persist together.
-Component failures mark the review failed with a safe error code while preserving successful analysis results.
-
-Defaults: 20 files, 20,000 diff characters per file, 100,000 serialized input
-characters per review (including prompt/schema and retry budget), 4,096 output
-tokens per request, 30-second HTTP operation timeout, and one retry for transient
-errors. These are size controls, not a guaranteed dollar budget. Context is the
-full head file; oversized files are skipped whole, with reasons in `scope_summary.ai`.
-There is no silent context truncation. Findings are available through the existing
-findings endpoint. AI can produce false positives; publishing and report deduplication
-are future work.
-
-
-## Validated review reports
-
-`GET /api/reviews/{review_id}/report` returns the persisted combined report for
-newly completed jobs. It contains severity counts, validated findings, analysis
-status, original normalized tool findings, merge provenance, and rejection reasons.
-Missing reviews return 404; unfinished jobs and legacy jobs without a validated
-report return 409 rather than an invented empty report.
-
-Validation rejects unsupported severities, malformed fields, unknown paths, invalid
-line numbers, descriptions over 4,000 characters, and findings outside added diff
-lines. Locations are checked against the exact head source fetched by the worker.
-Unified diff parsing checks hunk lengths and tracks old/new positions. Truncated
-or overlapping hunks fail closed.
-
-Deduplication uses exact `(file_path, line_number, category)` matches. The highest
-severity is retained with deterministic tie-breaking; all original normalized
-findings and their indices remain in the report. Different categories on one line
-remain separate. Rule IDs are not guessed to be equivalent to broad AI categories.
-Use report findings for future publication, not the raw `/findings` audit endpoint.
-
-Reports are committed with findings and completion in the existing JSONB
-`scope_summary.report`; no database schema migration is needed. AI analysis is
-reported as disabled, limited, or completed. A failed component marks the job and report failed; successful results remain available. Location/schema validation cannot prove an AI
-claim is semantically correct.
-
-
-### Partial analysis failures
-
-Static and AI analysis run independently after source retrieval. If either fails,
-the job and persisted report have `status=failed` and the job has
-`error_code=analysis_incomplete`. The report records each component as completed,
-failed, disabled, or limited. Successful findings are retained, including findings
-from AI files reviewed before another file fails. Both-component failure produces
-a failed report with zero findings, not a clean review.
-
-`GET /api/reviews/{id}/report` serves these partial reports. Failures during GitHub
-retrieval still follow the existing retry/error path because there is no source
-to analyze. Duplicate task delivery skips terminal failed jobs; component-level
-resumption is not implemented. Raw exception/provider text is not exposed.
-
-Model output wrapped in Markdown fences is rejected as invalid JSON. Markdown,
-HTML, and instruction-like text inside valid finding fields remain inert JSON
-strings for audit; consumers must render them as plain text, not trusted HTML or
-commands. No publishing or HTML renderer exists yet. Schema validation does not
-claim to detect every malicious sentence or establish factual correctness.
-
-
-## GitHub Check Runs
-
-Enable `GITHUB_CHECKS_ENABLED=true` on workers (Compose default). Configure the
-App ID and mounted private-key PEM, install the App on the test repository, and
-grant **Checks: read/write**, **Contents: read**, **Pull requests: read**. Accept
-updated permissions on the installation after editing the App configuration.
-Authentication uses the existing App installation-token service, never a PAT.
-
-Workers create an in-progress **DevFlow AI Code Review** on the stored head SHA.
-After committing the report, a separate publication task updates that check.
-The API exposes `github_check_run_id` and `publication_status`. Publication errors
-do not erase analysis results or change analysis success into an analysis failure.
-
-Conclusion policy: clean complete reviews use success; advisory findings, disabled
-AI, or limited scope use neutral; failed analysis uses action_required. Findings
-use notice/warning annotations, never failure solely for an AI severity. Summary
-counts come from validated report findings, not model-written summary prose.
-
-The publisher revalidates changed-line locations and sends at most 50 annotations
-per request. It checks the current PR head before creation, each annotation batch,
-and completion. A moved head marks the job superseded and cancels the old check.
-Annotations already sent remain attached only to the old SHA. A head can still
-change immediately after the final read; GitHub provides no atomic compare-and-publish.
-
-A PostgreSQL row lock serializes local publishers. The persisted check ID is reused.
-If a create response was lost, external_id matching against the App's checks
-recovers the remote ID. Annotation fingerprints in raw_details reconcile accepted
-batches before retrying. This handles normal redelivery and observed remote state;
-GitHub has no create idempotency key, so this is not a distributed exactly-once
-guarantee during ambiguous failures or delayed remote visibility.
-
-Transient publication failures retry up to three times. To retry publication from
-the stored report without re-running analysis:
-
-```bash
-docker compose exec worker celery -A app.workers.celery_app:celery_app call app.workers.publication_tasks.publish_review --args='["REVIEW_UUID"]'
-```
-
-A periodic PostgreSQL recovery sweep repairs the commit-to-queue gap. Use the retry
-command for enqueue_failed or interrupted publication; inspect publication_status.
-
-Live acceptance: open/update a test PR, inspect the stored review/report, verify
-the check's SHA and annotations, retry publication, and confirm the same check ID.
-This remains unverified locally while the App ID and private-key mount are absent.
-API permissions cannot be confirmed without those credentials.
-
-API reference: [GitHub Check Runs](https://docs.github.com/en/rest/checks/runs).
-
-
-## Local review dashboard
-
-Run `docker compose up -d --build --scale worker=3` and open
-http://localhost:5173. The React/TypeScript dashboard shows paginated review history,
-status counts, component/publication status, validated findings and suggested fixes.
-It polls every five seconds, displays empty/error states, and renders finding text
-as plain text. All counts come from PostgreSQL; there are no demo counts.
-
-New read endpoints: `GET /api/reviews?page=1&page_size=20` (maximum 100),
-`GET /api/metrics/summary`. Existing detail/findings/report endpoints remain available.
-API CORS permits only http://localhost:5173. Vite proxies /api requests locally.
-Dashboard/API bind to loopback; PostgreSQL/Redis have no host ports. For SQL access,
-use `docker compose exec postgres psql -U devflow -d devflow`. Never expose the
-dashboard or API read routes through a public tunnel: there is no authentication
-or repository authorization yet. Route only the signed webhook endpoint publicly.
-
-Validation and honest performance data: [benchmarks](docs/benchmarks.md). The local
-Redis/Celery/PostgreSQL workflow is exercised with real static tools and explicit
-GitHub/AI fakes. Live Day 10 acceptance still needs GitHub App credentials, accepted
-permissions, a webhook tunnel, and a successful LLM call. Local test success is not
-a claim that a real PR has received a published automated review.
-
-
-## Day 11 reliability
-
-Run `docker compose up -d --build --scale worker=3` with the new single scheduler
-service. It sends a recovery task every 30 seconds. PostgreSQL stores pending
-review/publication intent, so Redis loss or a crash between commit and enqueue
-does not silently discard work. Only jobs with installation IDs are auto-dispatched.
-
-Reviews have at most four processing attempts. GitHub network errors, rate limits
-and retryable HTTP failures use 30/60/120-second backoff (or a longer GitHub
-Retry-After). Gemini transport errors and 408/429/5xx use bounded local requests
-plus bounded job retries. Credentials, malformed payloads and invalid model output
-are permanent errors. Partial findings persist before an AI retry; exhausted jobs
-retain their partial report and fail visibly. Whole-job retries can repeat analysis
-and incur additional LLM cost; component-level resume is not implemented.
-
-Each attempt claims a row with a random token and expiry. Final writes require
-that token; stale workers cannot overwrite a newer attempt. A task has a 1,800s
-hard limit by default and its claim expires 30s later. Recovery therefore may take
-up to about 31 minutes plus queue backlog after a sudden worker loss. The crash
-fixture uses a 10s task limit and 40s claim instead. Redelivery during an active
-claim skips the duplicate; the database sweep remains responsible after expiry.
-
-Publication has its own persisted four-attempt budget and next-attempt deadline.
-Completed publication is a no-op on replay. Existing external-ID/check-ID and
-annotation-fingerprint reconciliation remains in place; no distributed exactly-once
-guarantee is claimed. Permanent publication errors require operator correction.
-
-`last_error`, `attempt_count`, `started_at`, `completed_at` and `next_attempt_at`
-are visible in review details. Application log messages contain JSON fields for
-review/repository/PR/SHA/worker/stage/duration and allowlisted error codes. Source
-text, provider bodies, tokens and exception text are excluded from those records.
-Celery infrastructure messages retain their normal log format.
-
-Regression: `docker compose exec api pytest -q`. Recovery can also be invoked with
-`docker compose exec worker celery -A app.workers.celery_app:celery_app call app.workers.recovery_tasks.recover_reviews`.
-The scheduler is required; do not run multiple Beat instances. Existing signed
-webhook and repo/PR/SHA constraints still provide the first two idempotency layers.
+The Day 12 run passed **167 tests with 89.78% backend line coverage**; all 112
+unit tests also passed with an unreachable database. CI runs focused Ruff
+correctness rules, migrations against PostgreSQL, pytest, and coverage artifacts.
+No paid LLM or live GitHub request is allowed in the automated suite.
+See [benchmarks](docs/benchmarks.md) for exact run dates and limitations.
+
+## AI Evaluation
+
+[35 labeled cases](evaluation/README.md) include buggy, clean, and unchanged-bug
+examples. Static-only results: precision 27.27%, recall 30.00%, F1 28.57% under
+strict line/category matching. These modest results include scoring-taxonomy
+limitations. Gemini returned HTTP 503, so AI-only, combined, and grounding
+comparisons remain unmeasured. [Methodology and raw results](docs/ai-evaluation.md)
+are retained without relabeling cases to improve the scores.
+
+## Performance Benchmarks
+
+Use `compose.benchmark.yml` for an isolated simulated workload: real HTTP,
+PostgreSQL, Redis, Celery, Ruff and Bandit, deterministic GitHub and AI fixtures.
+It contains no provider credentials and does not publish Checks. AI_REVIEW_MODE=mock
+is supported only by the explicitly selected benchmark worker entrypoint.
+
+[Actual measurements and reproduction](docs/benchmarks.md) cover 50/100/250
+events across 1/2/4 single-process workers and duplicate-delivery replay. These
+are local load tests, not production traffic or real-model throughput.
+
+## Security Considerations
+
+Secrets stay in ignored environment/private-key files. App installation tokens
+are temporary. Signature verification uses the raw body and constant-time
+comparison. Static tools run with bounded timeouts, isolated config, and a
+restricted environment; source files are never imported or executed. Repository
+text is untrusted LLM input. Model output is validated and rendered as text.
+Only the signed webhook endpoint should be publicly reachable until proper user
+and repository authorization exist. The Vercel sample has no backend connection.
+
+## Design Decisions
+
+PostgreSQL is the source of truth; Redis transports IDs. Durable intent plus a
+single recovery scheduler repairs the commit-to-queue gap. Leases protect final
+writes after worker loss. Separate component/publication statuses preserve useful
+results during partial failure. Deterministic path/line/category deduplication
+preserves provenance. A small single-provider integration keeps scope manageable.
+
+## Known Limitations
+
+- Cloud backend and real GitHub acceptance are incomplete; the public frontend is a labeled sample.
+- Gemini availability blocked live evaluation and meaningful cost/latency measurements.
+- Whole-job retries can repeat analysis and incur cost; component resume is absent.
+- GitHub provides no distributed exactly-once create guarantee; ambiguous remote failures remain possible.
+- Head SHA can change just after the last publication check.
+- Default crash recovery may take about 31 minutes plus queue backlog.
+- Coverage measures executed lines, not semantic correctness or production readiness.
+- Synthetic benchmark labels need independent review; small fixtures do not represent arbitrary repositories.
+
+## Future Improvements
+
+Complete live deployment acceptance and independent evaluation first. Then consider
+repository authorization, component-level resumption, better observability, calibrated
+findings, and additional languages. Feature development is otherwise frozen.

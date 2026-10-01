@@ -1,0 +1,46 @@
+name: devflow-benchmark
+x-env: &env
+  DATABASE_URL: postgresql+psycopg://benchmark:benchmark@postgres:5432/benchmark
+  REDIS_URL: redis://redis:6379/0
+  ENVIRONMENT: benchmark
+  GITHUB_WEBHOOK_SECRET: isolated-benchmark-only
+  GITHUB_CHECKS_ENABLED: 'false'
+  AI_ENABLED: 'true'
+  AI_REVIEW_MODE: mock
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: benchmark
+      POSTGRES_PASSWORD: benchmark
+      POSTGRES_DB: benchmark
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U benchmark -d benchmark']
+      interval: 2s
+      retries: 30
+    volumes: [benchmark_data:/var/lib/postgresql/data]
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      retries: 30
+  api:
+    build: ./backend
+    environment: *env
+    command: [sh, -c, 'alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000']
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    volumes:
+      - ./docs:/results
+      - ./evaluation:/evaluation:ro
+  worker:
+    build: ./backend
+    environment: *env
+    command: [python, -m, scripts.benchmark_worker]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+volumes:
+  benchmark_data:

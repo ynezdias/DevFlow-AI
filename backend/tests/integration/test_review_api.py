@@ -7,6 +7,13 @@ def test_dashboard_history_metrics_and_cors(database):
     payload = pr_payload()
     payload["pull_request"]["head"]["sha"] = "d" * 40
     second = send_event(payload).json()["review_id"]
+    # The fixture shares one transaction: PostgreSQL now() can tie timestamps.
+    # Set explicit ordering rather than relying on random UUID ordering.
+    from datetime import datetime, timezone, timedelta
+    from uuid import UUID
+    database.get(ReviewJob, UUID(first)).created_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    database.get(ReviewJob, UUID(second)).created_at = datetime.now(timezone.utc)
+    database.flush()
     page1 = client.get("/api/reviews?page=1&page_size=1").json()
     page2 = client.get("/api/reviews?page=2&page_size=1").json()
     assert page1["items"][0]["id"] == second

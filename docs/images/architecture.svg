@@ -1,0 +1,21 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="800" viewBox="0 0 1100 800">
+<rect width="1100" height="800" fill="#101727"/>
+<style>text{fill:#eef3ff;font:20px sans-serif;text-anchor:middle}.box{fill:#20324d;stroke:#64b5f6;stroke-width:2}.arrow{stroke:#8da8c9;stroke-width:3;fill:none;marker-end:url(#tip)}</style>
+<defs><marker id="tip" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#8da8c9"/></marker></defs>
+<text x="550" y="45" style="font-size:30px">DevFlow AI — implemented pipeline</text>
+<rect class="box" x="410" y="75" width="280" height="65" rx="12"/><text x="550" y="115">GitHub pull request</text>
+<path class="arrow" d="M550 140 V190"/><text x="760" y="175">Signed webhook</text>
+<rect class="box" x="410" y="190" width="280" height="65" rx="12"/><text x="550" y="230">FastAPI</text>
+<path class="arrow" d="M410 223 H270 V310"/><path class="arrow" d="M690 223 H830 V310"/>
+<rect class="box" x="130" y="310" width="280" height="65" rx="12"/><text x="270" y="350">PostgreSQL: jobs / reports</text>
+<rect class="box" x="690" y="310" width="280" height="65" rx="12"/><text x="830" y="350">Redis → Celery</text>
+<path class="arrow" d="M830 375 V435 H690"/>
+<rect class="box" x="410" y="405" width="280" height="65" rx="12"/><text x="550" y="445">Exact head source</text>
+<path class="arrow" d="M485 470 V505 H300 V535"/><path class="arrow" d="M615 470 V505 H800 V535"/>
+<rect class="box" x="160" y="535" width="280" height="65" rx="12"/><text x="300" y="575">Ruff / Bandit</text>
+<rect class="box" x="660" y="535" width="280" height="65" rx="12"/><text x="800" y="575">Gemini (optional)</text>
+<path class="arrow" d="M300 600 V635 H410"/><path class="arrow" d="M800 600 V635 H690"/>
+<rect class="box" x="410" y="605" width="280" height="65" rx="12"/><text x="550" y="645">Validate → persist</text>
+<path class="arrow" d="M550 670 V710"/><text x="550" y="740">GitHub Checks + private React dashboard</text>
+<text x="550" y="780" style="font-size:16px;fill:#b5c5d9">Local tests verified. Live cloud pipeline pending. Vercel demo uses labeled sample data.</text>
+</svg>
